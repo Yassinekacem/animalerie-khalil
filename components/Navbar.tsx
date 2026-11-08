@@ -16,11 +16,10 @@ import {
 const navLinks = [
   { name: "Accueil", href: "/" },
   { name: "Boutique", href: "/boutique" },
-  { name: "Chiens", href: "/chiens" },
-  { name: "Chats", href: "/chats" },
-  { name: "Oiseaux", href: "/oiseaux" },
-  { name: "Accessoires", href: "/accessoires" },
-  { name: "Contact", href: "/contact" },
+  { name: "Chiens", href: "/category?cible=chien" },
+  { name: "Chats", href: "/category?cible=chat" },
+  { name: "Oiseaux", href: "/category?cible=oiseaux" },
+  { name: "Poissons", href: "/category?cible=poissons" },
 ];
 
 export default function Navbar() {
@@ -32,7 +31,7 @@ export default function Navbar() {
       {/* Announcement bar */}
       <div className="bg-[#65D900] px-3 py-2 text-center text-xs font-semibold text-black sm:text-sm">
         <PawPrint className="mr-2 inline-block h-4 w-4" />
-        Tout pour le bonheur de vos animaux 🐾
+        Tout pour le bonheur de vos animaux
       </div>
 
       {/* Main Navbar */}

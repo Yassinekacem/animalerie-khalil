@@ -1,8 +1,8 @@
-
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
+import { motion, type Variants } from "framer-motion";
 import { 
   Hand,
   ArrowRight,
@@ -13,8 +13,6 @@ import {
   ShieldCheck,
   Headphones,
   Gift,
-  PawPrint,
-  CheckCircle2,
   Mail,
 } from "lucide-react";
 
@@ -23,31 +21,31 @@ import {
 const categories = [
   {
     name: "Chiens",
-    description: "Tout pour votre fidèle compagnon",
+    description: "Alimentation et accessoires pour le bien-être de votre chien.",
     image:
       "https://images.unsplash.com/photo-1552053831-71594a27632d?w=700",
-    href: "/products",
+    href: "/category?cible=chien",
   },
   {
     name: "Chats",
-    description: "Le bonheur de vos petits félins",
+    description: "Tout pour nourrir, divertir et prendre soin de votre chat.",
     image:
       "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=700",
-    href: "/products",
+    href: "/category?cible=chat",
   },
   {
     name: "Oiseaux",
-    description: "Pour des compagnons pleins de vie",
+    description: "Aliments et accessoires pour le confort de vos oiseaux.",
     image:
       "https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=700",
-    href: "/products",
+    href: "/category?cible=oiseaux",
   },
   {
-    name: "Accessoires",
-    description: "Le confort au quotidien",
+    name: "Poissons",
+    description: "Alimentation et accessoires pour vos poissons et aquariums.",
     image:
-      "https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=700",
-    href: "/products",
+      "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=712&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
+    href: "/category?cible=poissons",
   },
 ];
 
@@ -120,6 +118,76 @@ const advantages = [
   },
 ];
 
+// ================= ANIMATION VARIANTS =================
+
+const containerVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.13,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const wordVariants: Variants = {
+  hidden: {
+    pathLength: 0,
+    opacity: 0,
+  },
+  visible: {
+    pathLength: 1,
+    opacity: 1,
+    transition: {
+      pathLength: {
+        duration: 1.5,
+        ease: [0.16, 1, 0.3, 1],
+        delay: 0.2,
+      },
+      opacity: {
+        duration: 0.3,
+        delay: 0.2,
+      },
+    },
+  },
+};
+
+const accentWordVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 20,
+    filter: "blur(10px)",
+    textShadow: "0px 0px 0px rgba(101, 217, 0, 0)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    textShadow: "0px 0px 20px rgba(101, 217, 0, 0.3)",
+    transition: {
+      duration: 0.8,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
+const underlineVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 10,
+    filter: "blur(5px)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      duration: 0.7,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
 // ================= HOME PAGE =================
 
 export default function HomePage() {
@@ -138,25 +206,73 @@ export default function HomePage() {
           {/* Hero text */}
           <div className="z-10 max-w-xl">
 
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#65D900]/30 bg-[#65D900]/10 px-4 py-2">
-              <PawPrint size={16} className="text-[#65D900]" />
-              <span className="text-xs font-bold uppercase tracking-wider text-[#65D900]">
-                Bienvenue chez Animalerie Khalil
+            {/* Titre animé mot par mot */}
+            <motion.h1
+              className="text-4xl font-extrabold leading-[1.15] text-white sm:text-5xl lg:text-6xl"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {/* Première ligne : "Parce qu'ils font partie de" */}
+              <span className="block">
+                {["Parce", "qu'ils", "font", "partie", "de"].map((word) => (
+                  <motion.span
+                    key={word}
+                    variants={wordVariants}
+                    className="mr-[0.28em] inline-block will-change-[transform,filter,opacity]"
+                  >
+                    {word}
+                  </motion.span>
+                ))}
               </span>
-            </div>
 
-            <h1 className="text-4xl font-extrabold leading-[1.15] text-white sm:text-5xl lg:text-6xl">
-              Parce qu'ils font partie de
-              <span className="mt-2 block text-[#65D900]">
-                notre famille.
+              {/* Deuxième ligne : "notre famille." en vert avec halo */}
+              <span className="mt-2 block">
+                {["notre", "famille."].map((word) => (
+                  <motion.span
+                    key={word}
+                    variants={accentWordVariants}
+                    className="mr-[0.28em] inline-block text-[#65D900] will-change-[transform,filter,opacity,text-shadow]"
+                  >
+                    {word}
+                  </motion.span>
+                ))}
               </span>
-            </h1>
+            </motion.h1>
 
-            <p className="mt-6 max-w-md text-sm leading-7 text-gray-400 sm:text-base">
+            {/* Trait vert dessiné sous le slogan */}
+            <motion.svg
+              viewBox="0 0 220 12"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="mt-4 h-3 w-[140px] sm:w-[180px] lg:w-[220px]"
+              initial="hidden"
+              animate="visible"
+              aria-hidden="true"
+            >
+              <motion.path
+                d="M2 8 Q 60 2, 110 7 T 218 5"
+                stroke="#65D900"
+                strokeWidth="3"
+                strokeLinecap="round"
+                variants={underlineVariants}
+              />
+            </motion.svg>
+
+            <motion.p
+              className="mt-6 max-w-md text-sm leading-7 text-gray-400 sm:text-base"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.7,
+                delay: 1.9,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
               Découvrez notre sélection d'alimentation, accessoires
               et produits essentiels pour prendre soin de vos animaux
               avec amour.
-            </p>
+            </motion.p>
 
             {/* Buttons */}
             <div className="mt-8 flex flex-wrap gap-4">
@@ -171,12 +287,25 @@ export default function HomePage() {
                 />
               </Link>
 
-              <Link
-                href="/contact"
-                className="rounded-full border border-white/30 px-7 py-4 text-sm font-semibold text-white transition hover:border-[#65D900] hover:text-[#65D900]"
+              {/* WhatsApp */}
+              <a
+                href="https://wa.me/21696766945?text=Bonjour%20Animalerie%20Khalil%2C%20je%20souhaite%20vous%20contacter."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-2 rounded-full border border-white/30 px-7 py-4 text-sm font-semibold text-white transition hover:border-[#65D900] hover:text-[#65D900]"
               >
-                Nous contacter
-              </Link>
+                {/* Icône WhatsApp */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="h-5 w-5 text-[#65D900]"
+                  aria-hidden="true"
+                >
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+                </svg>
+                Nous contacter sur WhatsApp
+              </a>
             </div>
 
             {/* Trust indicators */}
@@ -214,46 +343,33 @@ export default function HomePage() {
             </div>
           </div>
 
-    
-{/* Hero image */}
-<div className="relative mx-auto w-full max-w-[600px] lg:ml-auto">
+          {/* Hero image */}
+          <div className="relative mx-auto w-full max-w-[600px] lg:ml-auto">
 
-  {/* Green glow */}
-  <div className="absolute -inset-6 rounded-[35px] bg-[#65D900]/15 blur-[70px]" />
+            {/* Halo vert doux derrière */}
+            <div className="absolute -inset-8 rounded-full bg-[#65D900]/20 blur-[90px]" />
 
-  {/* Store image */}
-  <div className="relative overflow-hidden rounded-3xl border border-[#65D900]/30 bg-[#171717] p-2 shadow-2xl shadow-black/40">
+            {/* Image boutique légèrement inclinée, effet carte postale */}
+            <div className="relative -rotate-2 transition duration-500 hover:rotate-0">
+              <div className="overflow-hidden rounded-[28px] border-[6px] border-white bg-white shadow-2xl shadow-black/50">
+                <Image
+                  src="/boutique.png"
+                  alt="Bienvenue dans la boutique physique Animalerie Khalil"
+                  width={1648}
+                  height={928}
+                  priority
+                  sizes="(max-width: 1024px) 90vw, 600px"
+                  className="block h-auto w-full rounded-[22px]"
+                />
+              </div>
 
-    <Image
-      src="/boutique.png"
-      alt="Bienvenue dans la boutique physique Animalerie Khalil"
-      width={1648}
-      height={928}
-      priority
-      sizes="(max-width: 1024px) 90vw, 600px"
-      className="block h-auto w-full rounded-2xl"
-    />
+              {/* Petit ruban / étiquette "Notre boutique" en haut à droite */}
+              <div className="absolute -right-3 -top-3 rotate-6 rounded-full bg-[#65D900] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wider text-black shadow-lg">
+                Notre boutique
+              </div>
+            </div>
 
-  </div>
-
-  {/* Floating label */}
-  <div className="absolute -bottom-5 left-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#171717] p-4 shadow-xl sm:-left-6">
-
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#65D900]">
-<Hand size={25} className="text-black" />    </div>
-
-    <div>
-      <p className="text-sm font-bold text-white">
-     Bienvenue chez Animalerie Khalil
-      </p>
-      <p className="mt-1 text-xs font-medium text-[#65D900]">
-       votre animalerie familiale au service du bien-être de vos compagnons !
-      </p>
-    </div>
-
-  </div>
-
-</div>
+          </div>
 
         </div>
       </section>
@@ -279,7 +395,7 @@ export default function HomePage() {
             </div>
 
             <Link
-              href="/products"
+              href="/category"
               className="flex items-center gap-2 text-sm font-bold text-gray-900 transition hover:text-[#55B900]"
             >
               Toutes les catégories
@@ -532,153 +648,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= NEWSLETTER ================= */}
-
-      <section className="bg-white px-5 py-16 lg:px-8">
-        <div className="mx-auto max-w-4xl rounded-3xl bg-[#101010] px-6 py-12 text-center sm:px-12">
-
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#65D900]">
-            <Mail size={26} className="text-black" />
-          </div>
-
-          <h2 className="mt-6 text-2xl font-extrabold text-white sm:text-3xl">
-            Restez au courant !
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-gray-400">
-            Inscrivez-vous pour découvrir nos nouveautés, conseils
-            et prochaines promotions.
-          </p>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              alert("Merci ! La newsletter sera bientôt disponible.");
-            }}
-            className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row"
-          >
-            <input
-              type="email"
-              required
-              placeholder="Votre adresse e-mail"
-              className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/10 px-5 py-4 text-sm text-white outline-none placeholder:text-gray-500 focus:border-[#65D900]"
-            />
-
-            <button
-              type="submit"
-              className="rounded-full bg-[#65D900] px-7 py-4 text-sm font-bold text-black transition hover:bg-[#55BD00]"
-            >
-              S'inscrire
-            </button>
-          </form>
-        </div>
-      </section>
-
-      {/* ================= FOOTER ================= */}
-
-      <footer className="bg-[#010101] px-5 pb-8 pt-14 text-white lg:px-8">
-
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* Brand */}
-          <div>
-            <Link href="/">
-              <Image
-                src="/logo-animalerie.png"
-                alt="Animalerie Khalil"
-                width={220}
-                height={70}
-                className="h-auto w-[180px] object-contain"
-              />
-            </Link>
-
-            <p className="mt-5 max-w-xs text-sm leading-7 text-gray-400">
-              Tout pour le bonheur et le bien-être de vos animaux.
-              Merci de faire confiance à Animalerie Khalil !
-            </p>
-
-            <div className="mt-5 flex gap-3">
-              <a
-                href="#"
-                aria-label="Facebook"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-[#65D900] hover:text-black"
-              >
-           
-              </a>
-              <a
-                href="#"
-                aria-label="Instagram"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-[#65D900] hover:text-black"
-              >
-    
-              </a>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div>
-            <h3 className="mb-5 font-bold text-[#65D900]">
-              Navigation
-            </h3>
-            <div className="flex flex-col gap-3 text-sm text-gray-400">
-              <Link href="/" className="hover:text-[#65D900]">Accueil</Link>
-              <Link href="/products" className="hover:text-[#65D900]">Boutique</Link>
-              <Link href="/products" className="hover:text-[#65D900]">Nos produits</Link>
-              <Link href="/contact" className="hover:text-[#65D900]">Contact</Link>
-            </div>
-          </div>
-
-          {/* Categories */}
-          <div>
-            <h3 className="mb-5 font-bold text-[#65D900]">
-              Nos catégories
-            </h3>
-            <div className="flex flex-col gap-3 text-sm text-gray-400">
-              <Link href="/products" className="hover:text-[#65D900]">Chiens</Link>
-              <Link href="/products" className="hover:text-[#65D900]">Chats</Link>
-              <Link href="/products" className="hover:text-[#65D900]">Oiseaux</Link>
-              <Link href="/products" className="hover:text-[#65D900]">Accessoires</Link>
-            </div>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h3 className="mb-5 font-bold text-[#65D900]">
-              Contact
-            </h3>
-
-            <div className="space-y-4 text-sm text-gray-400">
-              <p>
-                <span className="block font-semibold text-white">
-                  Téléphone
-                </span>
-                99 434 597
-              </p>
-
-              <p>
-                <span className="block font-semibold text-white">
-                  Disponibilité
-                </span>
-                Contactez-nous pour connaître nos horaires.
-              </p>
-
-              <Link
-                href="/contact"
-                className="inline-flex items-center gap-2 font-semibold text-[#65D900] hover:underline"
-              >
-                Nous contacter
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="mx-auto mt-12 max-w-7xl border-t border-white/10 pt-7 text-center">
-          <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} Animalerie Khalil. Tous droits réservés.
-          </p>
-        </div>
-      </footer>
+  
 
     </main>
   );

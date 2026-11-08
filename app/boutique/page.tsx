@@ -349,57 +349,15 @@ export default function ProductsPage() {
         </label>
       </div>
 
-      {/* Sidebar promo */}
-      <div className="rounded-2xl bg-[#101010] p-5 text-white">
-        <PawPrint className="mb-3 text-[#65D900]" size={28} />
-        <h3 className="text-lg font-bold">
-          Le bonheur de vos animaux !
-        </h3>
-        <p className="mt-2 text-xs leading-5 text-gray-400">
-          Découvrez notre sélection de produits pour vos compagnons.
-        </p>
-        <Link
-          href="/contact"
-          className="mt-4 inline-block text-sm font-bold text-[#65D900] hover:underline"
-        >
-          Nous contacter →
-        </Link>
-      </div>
+
+
     </div>
   );
 
   return (
     <main className="min-h-screen bg-[#F7F8F6]">
 
-      {/* ================= HERO ================= */}
-      <section className="bg-[#010101] px-4 py-12 text-white sm:py-16">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-3 flex items-center gap-2 text-sm text-gray-400">
-            <Link href="/" className="hover:text-[#65D900]">
-              Accueil
-            </Link>
-            <span>/</span>
-            <span className="text-[#65D900]">Boutique</span>
-          </div>
 
-          <div className="max-w-2xl">
-            <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#65D900]/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#65D900]">
-              <PawPrint size={15} />
-              Animalerie Khalil
-            </span>
-
-            <h1 className="text-3xl font-extrabold leading-tight sm:text-5xl">
-              Tout pour vos
-              <span className="text-[#65D900]"> compagnons</span>
-            </h1>
-
-            <p className="mt-4 max-w-lg text-sm leading-6 text-gray-400 sm:text-base">
-              Découvrez notre sélection d'alimentation, accessoires
-              et produits de qualité pour prendre soin de vos animaux.
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* ================= BENEFITS ================= */}
       <section className="border-b border-gray-100 bg-white">
