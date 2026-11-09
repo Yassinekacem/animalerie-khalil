@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -69,13 +68,15 @@ export default function Footer() {
               Boutique
             </Link>
 
-            <Link href="/products" className="hover:text-[#65D900]">
-              Nos produits
-            </Link>
 
-            <Link href="/contact" className="hover:text-[#65D900]">
+            <a
+              href="https://wa.me/21696766945?text=Bonjour%20Animalerie%20Khalil%2C%20je%20souhaite%20vous%20contacter."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#65D900]"
+            >
               Contact
-            </Link>
+            </a>
           </div>
         </div>
 
@@ -86,20 +87,20 @@ export default function Footer() {
           </h3>
 
           <div className="flex flex-col gap-3 text-sm text-gray-400">
-            <Link href="/products" className="hover:text-[#65D900]">
+            <Link href="/category?cible=chien" className="hover:text-[#65D900]">
               Chiens
             </Link>
 
-            <Link href="/products" className="hover:text-[#65D900]">
+            <Link href="/category?cible=chat" className="hover:text-[#65D900]">
               Chats
             </Link>
 
-            <Link href="/products" className="hover:text-[#65D900]">
+            <Link href="/category?cible=oiseaux" className="hover:text-[#65D900]">
               Oiseaux
             </Link>
 
-            <Link href="/products" className="hover:text-[#65D900]">
-              Accessoires
+            <Link href="/category?cible=poissons" className="hover:text-[#65D900]">
+              Poissons
             </Link>
           </div>
         </div>
@@ -125,13 +126,15 @@ export default function Footer() {
               Contactez-nous pour connaître nos horaires.
             </p>
 
-            <Link
-              href="/contact"
+            <a
+              href="https://wa.me/21696766945?text=Bonjour%20Animalerie%20Khalil%2C%20je%20souhaite%20vous%20contacter."
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 font-semibold text-[#65D900] hover:underline"
             >
               Nous contacter
               <ArrowRight size={16} />
-            </Link>
+            </a>
           </div>
         </div>
 
