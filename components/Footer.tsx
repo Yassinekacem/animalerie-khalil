@@ -7,7 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { FaFacebook, FaInstagram } from "react-icons/fa";
 
 export default function Footer() {
-  const [currentYear, setCurrentYear] = useState("2026");
+  const [currentYear, setCurrentYear] = useState("2026"); 
 
   useEffect(() => {
     setCurrentYear(String(new Date().getFullYear()));

@@ -39,7 +39,8 @@ export default function Navbar() {
       {/* Announcement bar */}
       <div className="bg-[#65D900] px-3 py-2 text-center text-xs font-semibold text-black sm:text-sm">
         <PawPrint className="mr-2 inline-block h-4 w-4" />
-        Tout pour le bonheur de vos animaux
+        Tout pour le bonheur de vos animaux                                                                                                                                
+        
       </div>
 
       {/* Main Navbar */}
@@ -126,7 +127,7 @@ export default function Navbar() {
               <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#65D900] text-[11px] font-bold text-black">
                 0
               </span>
-            </Link>
+            </Link> 
 
             {/* Mobile Menu Button */}
             <button
