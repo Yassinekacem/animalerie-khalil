@@ -31,3 +31,26 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 } 
+enum Animal {
+  chien
+  chat
+  oiseaux
+  poissons
+}
+
+// Chaque conditionnement vendu correspond a un produit independant.
+model Product {
+  id              Int      @id @default(autoincrement())
+  name            String
+  description     String
+  brand           String?
+  targetAnimal    Animal
+  // Identifiant des categories predefinies du projet (ex. alimentation, colliers-laisses).
+  category        String
+  image           String   @default("")
+  price           Decimal  @db.Decimal(10, 3)
+  promoPrice      Decimal? @db.Decimal(10, 3)
+  characteristics Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

@@ -11,14 +11,22 @@ import {
   ShoppingBag,
   ChartNoAxesCombined,
   ChartPie,
-  LogOut,
+  LogOut, 
+  LayoutDashboard ,
   Menu,
   X,
   PawPrint,
+  ExternalLink,
 } from "lucide-react";
 
-const adminLinks = [
-  {
+const adminLinks = [ 
+    { 
+    name: "Tableau de bord",
+    href: "/admin",
+    icon: LayoutDashboard,
+  },
+  { 
+    
     name: "Gestion utilisateurs",
     href: "/admin/utilisateurs",
     icon: Users,
@@ -34,15 +42,10 @@ const adminLinks = [
     icon: ShoppingBag,
   },
   {
-    name: "Statistiques utilisateurs",
-    href: "/admin/statistiques/utilisateurs",
+    name: "Statistiques",
+    href: "/admin/statistiques",
     icon: ChartNoAxesCombined,
-  },
-  {
-    name: "Statistiques produits",
-    href: "/admin/statistiques/produits",
-    icon: ChartPie,
-  },
+  }
 ];
 
 export default function AdminSidebar() {
@@ -152,7 +155,15 @@ export default function AdminSidebar() {
 
  {/* Bottom Section */}
 <div className="border-t border-white/10 px-4 pt-4 pb-10">
-
+<Link
+  href="/"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-white/5 hover:text-[#65D900]"
+>
+  <ExternalLink size={20} />
+  Voir la boutique
+</Link>
   {/* Logout */}
   <button
     onClick={handleLogout}
@@ -160,7 +171,8 @@ export default function AdminSidebar() {
   >
     <LogOut size={20} />
     Déconnexion
-  </button>
+  </button> 
+  
 </div>
       </aside>
     </>
