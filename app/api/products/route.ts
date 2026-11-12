@@ -1,4 +1,4 @@
-﻿import { Prisma } from "@/app/generated/prisma/client";
+import { Prisma, type Product as DatabaseProduct } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -69,31 +69,75 @@ const productSchema = z.strictObject({
   characteristics: fields.characteristics.default({}),
 }).superRefine(checkProduct);
 
-const querySchema = z.strictObject({
+
+
+const querySchema = z.object({
   q: z.string().trim().optional(),
   targetAnimal: animalSchema.optional(),
   category: z.string().trim().min(1).optional(),
   promotion: z.enum(["true", "false"]).optional(),
+  brand: z.string().trim().min(1).optional(),
+  minPrice: moneySchema.optional(),
+  maxPrice: moneySchema.optional(),
+  sort: z.enum(["newest", "price-asc", "price-desc"]).default("newest"),
+  brandsOnly: z.enum(["true", "false"]).optional(),
+  page: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(2147483647)).default(1),
+  pageSize: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(48)).default(12),
 }).superRefine((value, ctx) => {
-  if (value.category && !(Object.values(categories).flat()).includes(value.category)) {
+  if (value.category && !Object.values(categories).flat().includes(value.category)) {
     ctx.addIssue({ code: "custom", path: ["category"], message: "Catégorie inconnue." });
   } else if (value.targetAnimal && value.category && !categories[value.targetAnimal].includes(value.category)) {
     ctx.addIssue({ code: "custom", path: ["category"], message: "Catégorie incompatible avec l’animal." });
+  }
+  if (value.minPrice && value.maxPrice && value.minPrice.gt(value.maxPrice)) {
+    ctx.addIssue({ code: "custom", path: ["maxPrice"], message: "Le maximum doit être supérieur ou égal au minimum." });
   }
 });
 
 export async function GET(request: Request) {
   try {
-    const query = querySchema.parse(Object.fromEntries(new URL(request.url).searchParams));
-    const where: Prisma.ProductWhereInput = {
-      ...(query.q ? { name: { contains: query.q, mode: "insensitive" } } : {}),
-      ...(query.targetAnimal ? { targetAnimal: query.targetAnimal } : {}),
-      ...(query.category ? { category: query.category } : {}),
-      ...(query.promotion === "true" ? { promoPrice: { not: null } } : {}),
-      ...(query.promotion === "false" ? { promoPrice: null } : {}),
-    };
-    const products = await prisma.product.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
-    return Response.json(products);
+    const params = new URL(request.url).searchParams;
+    for (const key of ["q", "targetAnimal", "category", "promotion", "brand", "minPrice", "maxPrice", "sort", "brandsOnly", "page", "pageSize"]) {
+      if (params.getAll(key).length > 1) {
+        return Response.json({ error: "Paramètre répété : " + key }, { status: 400 });
+      }
+    }
+    const query = querySchema.parse(Object.fromEntries([...params].filter(([, value]) => value.trim() !== "")));
+    if (query.brandsOnly === "true") {
+      const rows = await prisma.product.findMany({
+        where: { brand: { not: null } }, select: { brand: true },
+        distinct: ["brand"], orderBy: { brand: "asc" },
+      });
+      return Response.json(rows.map(({ brand }) => brand).filter((brand): brand is string => !!brand?.trim()));
+    }
+    // Only SQL fragments are composed; all user values remain bound parameters.
+    const conditions: Prisma.Sql[] = [];
+    if (query.q) conditions.push(Prisma.sql`strpos(lower("name"), lower(${query.q}::text)) > 0`);
+    if (query.targetAnimal) conditions.push(Prisma.sql`"targetAnimal"::text = ${query.targetAnimal}`);
+    if (query.category) conditions.push(Prisma.sql`"category" = ${query.category}`);
+    if (query.brand) conditions.push(Prisma.sql`"brand" = ${query.brand}`);
+    if (query.promotion === "true") conditions.push(Prisma.sql`"promoPrice" IS NOT NULL`);
+    if (query.promotion === "false") conditions.push(Prisma.sql`"promoPrice" IS NULL`);
+    if (query.minPrice !== undefined) conditions.push(Prisma.sql`COALESCE("promoPrice", "price") >= ${query.minPrice.toString()}::numeric`);
+    if (query.maxPrice !== undefined) conditions.push(Prisma.sql`COALESCE("promoPrice", "price") <= ${query.maxPrice.toString()}::numeric`);
+    const where = conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}` : Prisma.empty;
+    const order = query.sort === "price-asc"
+      ? Prisma.sql`COALESCE("promoPrice", "price") ASC, "id" ASC`
+      : query.sort === "price-desc"
+        ? Prisma.sql`COALESCE("promoPrice", "price") DESC, "id" DESC`
+        : Prisma.sql`"createdAt" DESC, "id" DESC`;
+    // A consistent snapshot keeps the count and page aligned during concurrent writes.
+    const result = await prisma.$transaction(async tx => {
+      const [count] = await tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "Product" ${where}`);
+      const total = Number(count.total);
+      const totalPages = Math.ceil(total / query.pageSize);
+      const page = Math.min(query.page, Math.max(1, totalPages));
+      const products = total === 0 ? [] : await tx.$queryRaw<DatabaseProduct[]>(
+        Prisma.sql`SELECT * FROM "Product" ${where} ORDER BY ${order} LIMIT ${query.pageSize} OFFSET ${(page - 1) * query.pageSize}`
+      );
+      return { products, total, page, totalPages, pageSize: query.pageSize };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+    return Response.json(result);
   } catch (error) {
     return handleError(error);
   }

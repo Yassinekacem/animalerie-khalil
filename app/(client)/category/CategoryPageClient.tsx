@@ -432,7 +432,7 @@ export default function CategoryPageClient() {
             {categories.map((category, index) => (
               <Link
                 key={category.type}
-                href={`/boutique?cible=${selectedAnimal}&type=${category.type}`}
+                href={`/boutique?targetAnimal=${selectedAnimal}&category=${category.type}`}
                 className="group relative overflow-hidden rounded-2xl bg-[#111111]"
               >
                 <div className="relative aspect-[16/10] overflow-hidden sm:aspect-[5/3]">
