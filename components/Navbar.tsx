@@ -4,6 +4,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useCart } from "@/lib/cart";
 import {
   ShoppingCart,
   UserRound,
@@ -28,6 +29,7 @@ const navLinks = [
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { count } = useCart();
 
   // Simulation de l'état de connexion
   // false : utilisateur non connecté
@@ -120,12 +122,12 @@ export default function Navbar() {
             {/* Cart - Always visible */}
             <Link
               href="/panier"
-              aria-label="Mon panier"
+              aria-label={`Mon panier (${count} article${count > 1 ? "s" : ""})`}
               className="relative flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black"
             >
               <ShoppingCart size={22} />
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#65D900] text-[11px] font-bold text-black">
-                0
+              <span aria-live="polite" className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#65D900] px-1 text-[11px] font-bold text-black">
+                {count}
               </span>
             </Link> 
 
@@ -212,7 +214,7 @@ export default function Navbar() {
               <ShoppingCart size={20} />
               Mon panier
               <span className="ml-auto rounded-full bg-[#65D900] px-2 py-1 text-xs font-bold text-black">
-                0
+                {count}
               </span>
             </Link>
           </div>
