@@ -158,71 +158,98 @@ const underlineVariants: Variants = {
 // Reuse the existing home product card with the real catalogue fields.
 function ProductCard({ product }: { product: Product }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const validImage = /^\/(?!\/)/.test(product.image) || /^https?:\/\//i.test(product.image);
+  const validImage =
+    /^\/(?!\/)/.test(product.image) || /^https?:\/\//i.test(product.image);
   const image = !imageFailed && validImage ? product.image : fallbackImage;
   const hasPromo = product.promoPrice !== null;
-  return (
-    <article
-      className="group overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl"
-    >
 
-      {/* Image */}
+  return (
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+      {/* Image : ratio fixe */}
       <div className="relative aspect-square overflow-hidden bg-gray-100">
-        <Link href={`/boutique/${product.id}`} aria-label={`Voir ${product.name}`} className="block h-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#65D900]">
-        <Image
-          src={image}
-          alt={product.name}
-          fill
-          sizes="(max-width: 640px) 50vw, 25vw"
-          unoptimized={/^https?:\/\//i.test(image)}
-          onError={() => setImageFailed(true)}
-          className={image === fallbackImage ? "object-contain p-6" : "object-cover transition duration-500 group-hover:scale-110"}
-        />
+        <Link
+          href={`/boutique/${product.id}`}
+          aria-label={`Voir ${product.name}`}
+          className="block h-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#65D900]"
+        >
+          <Image
+            src={image}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 50vw, 25vw"
+            unoptimized={/^https?:\/\//i.test(image)}
+            onError={() => setImageFailed(true)}
+            className={
+              image === fallbackImage
+                ? "object-contain p-6"
+                : "object-cover transition duration-500 group-hover:scale-110"
+            }
+          />
         </Link>
 
         {hasPromo && (
-          <span className="absolute left-3 top-3 rounded-full bg-[#65D900] px-3 py-1 text-[10px] font-extrabold text-black">
+          <span className="absolute left-2 top-2 rounded-full bg-[#65D900] px-2 py-0.5 text-[9px] font-extrabold text-black sm:left-3 sm:top-3 sm:px-3 sm:py-1 sm:text-[10px]">
             PROMO
           </span>
         )}
 
         <button
           aria-label="Ajouter aux favoris"
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 shadow transition hover:bg-[#65D900]"
+          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow transition hover:bg-[#65D900] sm:right-3 sm:top-3 sm:h-9 sm:w-9"
         >
-          <Heart size={17} />
+          <Heart size={15} className="sm:hidden" />
+          <Heart size={17} className="hidden sm:block" />
         </button>
       </div>
 
-      {/* Details */}
-      <div className="p-3 sm:p-4">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
-          {productCategories[product.targetAnimal]?.find(category => category.id === product.category)?.name ?? product.category} • {animals[product.targetAnimal]}
+      {/* Détails : colonne flex, bouton poussé en bas */}
+      <div className="flex flex-1 flex-col p-2.5 sm:p-4">
+        {/* Catégorie + animal : 1 ligne max */}
+        <p className="min-w-0 truncate text-[9px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
+          {productCategories[product.targetAnimal]?.find(
+            category => category.id === product.category
+          )?.name ?? product.category}{" "}
+          • {animals[product.targetAnimal]}
         </p>
 
-        <h3 className="line-clamp-2 min-h-10 text-sm font-bold text-gray-900 sm:text-base">
-          <Link href={`/boutique/${product.id}`} className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[#65D900]">{product.name}</Link>
+        {/* Nom : 2 lignes réservées */}
+        <h3 className="mt-1.5 line-clamp-2 h-9 text-xs font-bold leading-[1.125rem] text-gray-900 sm:mt-2 sm:h-[3.25rem] sm:text-base sm:leading-[1.625rem]">
+          <Link
+            href={`/boutique/${product.id}`}
+            className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[#65D900]"
+          >
+            {product.name}
+          </Link>
         </h3>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-base font-extrabold text-gray-900">
+        {/* Prix : hauteur fixe, prix barré visible si promo */}
+        <div className="mt-2 flex h-6 flex-nowrap items-center gap-1.5 overflow-hidden sm:mt-3 sm:h-7 sm:gap-2">
+          <span className="shrink-0 whitespace-nowrap text-sm font-extrabold text-gray-900 sm:text-base">
             {formatPrice(product.promoPrice ?? product.price)}
           </span>
 
-          {hasPromo && (
-            <span className="text-xs text-gray-400 line-through">
+          {hasPromo ? (
+            <span className="truncate text-[10px] text-gray-400 line-through sm:text-xs">
               {formatPrice(product.price)}
+            </span>
+          ) : (
+            <span aria-hidden="true" className="invisible text-[10px] sm:text-xs">
+              &nbsp;
             </span>
           )}
         </div>
 
-        <Link
-          href={`/boutique/${product.id}`}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 py-3 text-xs font-bold text-black transition hover:bg-[#55BD00] sm:text-sm"
-        >
-          <ShoppingCart size={16} />
-          Découvrir le produit
-        </Link>
+        {/* ✅ Espace garanti entre prix et bouton */}
+        <div className="mt-auto pt-4 sm:pt-5">
+          <Link
+            href={`/boutique/${product.id}`}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#65D900] px-2 py-2.5 text-[11px] font-bold text-black transition hover:bg-[#55BD00] sm:gap-2 sm:rounded-xl sm:py-3 sm:text-sm"
+          >
+            <ShoppingCart size={14} className="sm:hidden" />
+            <ShoppingCart size={16} className="hidden sm:block" />
+            Découvrir le produit
+          </Link>
+        </div>
       </div>
     </article>
   );
