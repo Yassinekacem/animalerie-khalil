@@ -162,9 +162,14 @@ const ProductCard = memo(function ProductCard({
     : 0;
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+      {/* Image : ratio fixe */}
       <div className="relative aspect-square overflow-hidden bg-gray-100">
-        <Link href={`/boutique/${product.id}`} aria-label={`Voir ${product.name}`} className="block h-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#65D900]">
+        <Link
+          href={`/boutique/${product.id}`}
+          aria-label={`Voir ${product.name}`}
+          className="block h-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#65D900]"
+        >
           <ProductImage key={product.image} product={product} />
         </Link>
         {hasPromo && (
@@ -178,30 +183,53 @@ const ProductCard = memo(function ProductCard({
           aria-pressed={isFavorite}
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md hover:bg-[#65D900]"
         >
-          <Heart size={18} className={isFavorite ? "fill-red-500 text-red-500" : "text-gray-700"} />
+          <Heart
+            size={18}
+            className={isFavorite ? "fill-red-500 text-red-500" : "text-gray-700"}
+          />
         </button>
       </div>
-      <div className="p-3 sm:p-4">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
+
+      <div className="flex flex-1 flex-col p-3 sm:p-4">
+        {/* Catégorie : 1 ligne max, hauteur fixe */}
+        <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
           {categories[product.targetAnimal]?.find(item => item.id === product.category)?.name ??
             product.category}
         </p>
-        <h2 className="line-clamp-2 min-h-10 text-sm font-bold leading-5 text-gray-900 sm:text-base">
-          <Link href={`/boutique/${product.id}`} className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[#65D900]">{product.name}</Link>
+
+        {/* Nom : exactement 2 lignes réservées (h-10 = 2 × leading-5) */}
+        <h2 className="mt-2 line-clamp-2 h-10 text-sm font-bold leading-5 text-gray-900 sm:h-[3.25rem] sm:text-base sm:leading-[1.625rem]">
+          <Link
+            href={`/boutique/${product.id}`}
+            className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[#65D900]"
+          >
+            {product.name}
+          </Link>
         </h2>
-        <p className="mt-2 min-h-4 text-xs text-gray-500">{product.brand ?? "\u00A0"}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {hasPromo && (
-            <del className="text-xs text-gray-400">{formatPrice(product.price)}</del>
-          )}
+
+        {/* Marque : 1 ligne max, hauteur fixe */}
+        <p className="mt-2 h-4 truncate text-xs text-gray-500">
+          {product.brand ?? "\u00A0"}
+        </p>
+
+        {/* Prix : hauteur fixe, prix barré toujours réservé */}
+        <div className="mt-3 flex h-7 flex-wrap items-center gap-2">
+          <del
+            className={`text-xs text-gray-400 ${hasPromo ? "" : "invisible"}`}
+            aria-hidden={!hasPromo}
+          >
+            {formatPrice(product.price)}
+          </del>
           <span className="text-base font-extrabold text-gray-900 sm:text-lg">
             {formatPrice(product.promoPrice ?? product.price)}
           </span>
         </div>
+
+        {/* Bouton poussé en bas */}
         <button
           disabled={!cartReady}
           onClick={() => onAddToCart(product)}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 py-3 text-xs font-bold text-black transition hover:bg-[#55BD00] disabled:opacity-50 sm:text-sm"
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 py-3 text-xs font-bold text-black transition hover:bg-[#55BD00] disabled:opacity-50 sm:text-sm"
         >
           <ShoppingCart size={16} />
           Ajouter au panier
@@ -210,7 +238,6 @@ const ProductCard = memo(function ProductCard({
     </article>
   );
 });
-
 /* ============================================================
    Page
    ============================================================ */
