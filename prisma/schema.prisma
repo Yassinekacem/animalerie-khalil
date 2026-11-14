@@ -30,6 +30,7 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  orders    Order[]
 } 
 enum Animal {
   chien
@@ -53,4 +54,51 @@ model Product {
   characteristics Json     @default("{}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  orderItems      OrderItem[]
+}
+
+enum OrderStatus {
+  EN_ATTENTE
+  CONFIRMEE
+  EN_LIVRAISON
+  LIVREE
+  ANNULEE
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  reference       String      @unique
+  userId          Int?
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName    String
+  customerPhone   String
+  deliveryAddress String
+  customerEmail   String?
+  note            String?
+  status          OrderStatus @default(EN_ATTENTE)
+  subtotal        Decimal     @db.Decimal(18, 3)
+  deliveryFee     Decimal     @db.Decimal(18, 3)
+  total           Decimal     @db.Decimal(18, 3)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+
+  @@index([userId])
+  @@index([createdAt, id])
+  @@index([status, createdAt, id])
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  productId   Int
+  product     Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName String
+  unitPrice   Decimal @db.Decimal(10, 3)
+  // Also enforced by a CHECK constraint in the SQL migration.
+  quantity    Int
+
+  @@unique([orderId, productId])
+  @@index([productId])
 }

@@ -120,6 +120,10 @@ function removeItem(id: number) {
   return changeCart(items => items.filter(item => item.id !== id));
 }
 
+function clearItems() {
+  return changeCart(() => []);
+}
+
 export function useCart() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const items = useMemo(() => readItems(snapshot), [snapshot]);
@@ -130,5 +134,6 @@ export function useCart() {
     addItem,
     setQuantity,
     removeItem,
+    clearItems,
   };
 }

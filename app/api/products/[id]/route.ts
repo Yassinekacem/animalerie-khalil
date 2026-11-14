@@ -94,8 +94,7 @@ export async function PUT(request: Request, context: Context) {
 export async function DELETE(_request: Request, context: Context) {
   try {
     const id = idSchema.parse((await context.params).id);
-    // No order relation exists in the current schema. Restrictive foreign keys
-    // reject linked deletions atomically; handleError maps that failure to 409.
+    // The OrderItem foreign key rejects linked deletions atomically (409).
     await prisma.product.delete({ where: { id } });
     return Response.json({ message: "Produit supprimé." });
   } catch (error) {
