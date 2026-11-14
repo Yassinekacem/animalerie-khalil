@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import { animals, categories as productCategories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { 
@@ -8,7 +10,6 @@ import {
   ArrowRight,
   ShoppingCart,
   Heart,
-  Star,
   Truck,
   ShieldCheck,
   Headphones,
@@ -49,51 +50,15 @@ const categories = [
   },
 ];
 
-const featuredProducts = [
-  {
-    id: 1,
-    name: "Croquettes Premium pour chien",
-    category: "Alimentation • Chiens",
-    price: 89,
-    oldPrice: 105,
-    rating: 4.8,
-    reviews: 124,
-    image:
-      "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=700",
-    badge: "PROMO",
-  },
-  {
-    id: 2,
-    name: "Jouet interactif pour chat",
-    category: "Jouets • Chats",
-    price: 32,
-    rating: 4.9,
-    reviews: 56,
-    image:
-      "https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=700",
-    badge: "POPULAIRE",
-  },
-  {
-    id: 3,
-    name: "Accessoires pour animaux",
-    category: "Accessoires",
-    price: 45,
-    rating: 4.7,
-    reviews: 78,
-    image:
-      "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=700",
-  },
-  {
-    id: 4,
-    name: "Nourriture pour oiseaux",
-    category: "Alimentation • Oiseaux",
-    price: 25,
-    rating: 4.6,
-    reviews: 34,
-    image:
-      "https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=700",
-  },
-];
+type Product = {
+  id: number;
+  name: string;
+  targetAnimal: Animal;
+  category: string;
+  image: string;
+  price: string;
+  promoPrice: string | null;
+};
 
 const advantages = [
   {
@@ -190,7 +155,105 @@ const underlineVariants: Variants = {
 
 // ================= HOME PAGE =================
 
+// Reuse the existing home product card with the real catalogue fields.
+function ProductCard({ product }: { product: Product }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const validImage = /^\/(?!\/)/.test(product.image) || /^https?:\/\//i.test(product.image);
+  const image = !imageFailed && validImage ? product.image : fallbackImage;
+  const hasPromo = product.promoPrice !== null;
+  return (
+    <article
+      className="group overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+    >
+
+      {/* Image */}
+      <div className="relative aspect-square overflow-hidden bg-gray-100">
+        <Link href={`/boutique/${product.id}`} aria-label={`Voir ${product.name}`} className="block h-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#65D900]">
+        <Image
+          src={image}
+          alt={product.name}
+          fill
+          sizes="(max-width: 640px) 50vw, 25vw"
+          unoptimized={/^https?:\/\//i.test(image)}
+          onError={() => setImageFailed(true)}
+          className={image === fallbackImage ? "object-contain p-6" : "object-cover transition duration-500 group-hover:scale-110"}
+        />
+        </Link>
+
+        {hasPromo && (
+          <span className="absolute left-3 top-3 rounded-full bg-[#65D900] px-3 py-1 text-[10px] font-extrabold text-black">
+            PROMO
+          </span>
+        )}
+
+        <button
+          aria-label="Ajouter aux favoris"
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 shadow transition hover:bg-[#65D900]"
+        >
+          <Heart size={17} />
+        </button>
+      </div>
+
+      {/* Details */}
+      <div className="p-3 sm:p-4">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
+          {productCategories[product.targetAnimal]?.find(category => category.id === product.category)?.name ?? product.category} • {animals[product.targetAnimal]}
+        </p>
+
+        <h3 className="line-clamp-2 min-h-10 text-sm font-bold text-gray-900 sm:text-base">
+          <Link href={`/boutique/${product.id}`} className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[#65D900]">{product.name}</Link>
+        </h3>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-base font-extrabold text-gray-900">
+            {formatPrice(product.promoPrice ?? product.price)}
+          </span>
+
+          {hasPromo && (
+            <span className="text-xs text-gray-400 line-through">
+              {formatPrice(product.price)}
+            </span>
+          )}
+        </div>
+
+        <Link
+          href={`/boutique/${product.id}`}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 py-3 text-xs font-bold text-black transition hover:bg-[#55BD00] sm:text-sm"
+        >
+          <ShoppingCart size={16} />
+          Découvrir le produit
+        </Link>
+      </div>
+    </article>
+  );
+}
+
 export default function HomePage() {
+  const [retry, setRetry] = useState(0);
+  const [featured, setFeatured] = useState<{ key: number; products: Product[]; error: string }>({ key: -1, products: [], error: "" });
+  const loading = featured.key !== retry;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/products?sort=newest&pageSize=4&page=1", { cache: "no-store", signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Impossible de charger les produits.");
+        if (!Array.isArray(data.products)) throw new Error("Réponse du serveur incorrecte.");
+        if (!controller.signal.aborted) setFeatured({ key: retry, products: data.products, error: "" });
+      } catch (error) {
+        if (!controller.signal.aborted) setFeatured({
+          key: retry, products: [],
+          error: error instanceof TypeError ? "Impossible de contacter le serveur." :
+            error instanceof SyntaxError ? "Réponse du serveur incorrecte." :
+              error instanceof Error ? error.message : "Impossible de charger les produits.",
+        });
+      }
+    })();
+    return () => controller.abort();
+  }, [retry]);
+
   return (
     <main className="overflow-hidden bg-white">
 
@@ -277,7 +340,7 @@ export default function HomePage() {
             {/* Buttons */}
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
-                href="/products"
+                href="/boutique"
                 className="group flex items-center gap-3 rounded-full bg-[#65D900] px-7 py-4 text-sm font-bold text-black transition hover:bg-[#55BD00]"
               >
                 Découvrir la boutique
@@ -449,19 +512,19 @@ export default function HomePage() {
           <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-[3px] text-[#55B900]">
-                Nos coups de cœur
+                Les dernières arrivées
               </p>
               <h2 className="text-3xl font-extrabold text-[#111111] sm:text-4xl">
-                Produits populaires
+                Nos nouveautés
                 <span className="text-[#65D900]">.</span>
               </h2>
               <p className="mt-3 text-sm text-gray-500">
-                Découvrez les produits préférés de nos clients.
+                Découvrez les derniers produits ajoutés à notre boutique.
               </p>
             </div>
 
             <Link
-              href="/products"
+              href="/boutique"
               className="flex items-center gap-2 text-sm font-bold text-gray-900 transition hover:text-[#55B900]"
             >
               Voir tous les produits
@@ -471,81 +534,17 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
 
-            {featuredProducts.map((product) => (
-              <article
-                key={product.id}
-                className="group overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl"
-              >
-
-                {/* Image */}
-                <div className="relative aspect-square overflow-hidden bg-gray-100">
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    fill
-                    sizes="(max-width: 640px) 50vw, 25vw"
-                    className="object-cover transition duration-500 group-hover:scale-110"
-                  />
-
-                  {product.badge && (
-                    <span className="absolute left-3 top-3 rounded-full bg-[#65D900] px-3 py-1 text-[10px] font-extrabold text-black">
-                      {product.badge}
-                    </span>
-                  )}
-
-                  <button
-                    aria-label="Ajouter aux favoris"
-                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 shadow transition hover:bg-[#65D900]"
-                  >
-                    <Heart size={17} />
-                  </button>
-                </div>
-
-                {/* Details */}
-                <div className="p-3 sm:p-4">
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
-                    {product.category}
-                  </p>
-
-                  <h3 className="line-clamp-2 min-h-10 text-sm font-bold text-gray-900 sm:text-base">
-                    {product.name}
-                  </h3>
-
-                  <div className="mt-2 flex items-center gap-1">
-                    <Star
-                      size={13}
-                      className="fill-yellow-400 text-yellow-400"
-                    />
-                    <span className="text-xs font-semibold text-gray-700">
-                      {product.rating}
-                    </span>
-                    <span className="text-[10px] text-gray-400">
-                      ({product.reviews})
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="text-base font-extrabold text-gray-900">
-                      {product.price} DT
-                    </span>
-
-                    {product.oldPrice && (
-                      <span className="text-xs text-gray-400 line-through">
-                        {product.oldPrice} DT
-                      </span>
-                    )}
-                  </div>
-
-                  <Link
-                    href="/products"
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 py-3 text-xs font-bold text-black transition hover:bg-[#55BD00] sm:text-sm"
-                  >
-                    <ShoppingCart size={16} />
-                    Découvrir le produit
-                  </Link>
-                </div>
-              </article>
-            ))}
+            {loading ? (
+              <p role="status" className="col-span-full py-12 text-center text-sm text-gray-500">Chargement des produits…</p>
+            ) : featured.error ? (
+              <div role="alert" className="col-span-full py-12 text-center">
+                <p className="text-sm text-red-700">{featured.error}</p>
+                <button type="button" onClick={() => setRetry(value => value + 1)}
+                  className="mt-4 rounded-xl bg-[#65D900] px-5 py-3 text-sm font-bold text-black hover:bg-[#55BD00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">Réessayer</button>
+              </div>
+            ) : featured.products.length === 0 ? (
+              <p className="col-span-full py-12 text-center text-sm text-gray-500">Aucun produit disponible pour le moment.</p>
+            ) : featured.products.map(product => <ProductCard key={product.id} product={product} />)}
           </div>
         </div>
       </section>
@@ -576,7 +575,7 @@ export default function HomePage() {
               </p>
 
               <Link
-                href="/products"
+                href="/boutique?promotion=true"
                 className="mt-7 inline-flex items-center gap-3 rounded-full bg-[#65D900] px-7 py-4 text-sm font-bold text-black transition hover:bg-[#55BD00]"
               >
                 Voir les promotions
