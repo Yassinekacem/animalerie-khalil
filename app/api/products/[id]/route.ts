@@ -1,6 +1,7 @@
 ﻿import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { AuthError, authError, requireAdmin } from "@/lib/auth";
 
 const categories = {
   chien: ["alimentation", "colliers-laisses", "hygiene-soins", "jouets-divertissement", "transport", "couchage-niches", "gamelles-distributeurs"],
@@ -40,6 +41,7 @@ function checkProduct(value: { targetAnimal: z.infer<typeof animalSchema>; categ
 }
 
 function handleError(error: unknown) {
+  if (error instanceof AuthError) return authError(error);
   if (error instanceof z.ZodError) {
     return Response.json({ error: "Données invalides.", issues: error.issues }, { status: 400 });
   }
@@ -79,6 +81,7 @@ export async function GET(_request: Request, context: Context) {
 
 export async function PUT(request: Request, context: Context) {
   try {
+    await requireAdmin(request);
     const id = idSchema.parse((await context.params).id);
     const data = productSchema.parse(await request.json());
     const product = await prisma.product.update({
@@ -93,6 +96,7 @@ export async function PUT(request: Request, context: Context) {
 
 export async function DELETE(_request: Request, context: Context) {
   try {
+    await requireAdmin(_request);
     const id = idSchema.parse((await context.params).id);
     // The OrderItem foreign key rejects linked deletions atomically (409).
     await prisma.product.delete({ where: { id } });

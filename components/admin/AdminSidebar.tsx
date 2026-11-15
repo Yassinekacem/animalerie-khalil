@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -10,12 +11,10 @@ import {
   Package,
   ShoppingBag,
   ChartNoAxesCombined,
-  ChartPie,
   LogOut, 
   LayoutDashboard ,
   Menu,
   X,
-  PawPrint,
   ExternalLink,
 } from "lucide-react";
 
@@ -53,9 +52,27 @@ export default function AdminSidebar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleLogout = () => {
-    // Ajouter ici la logique de déconnexion
-    router.push("/connexion");
+  const { logout, user, loading, error: sessionError } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const leaving = useRef(false);
+  useEffect(() => {
+    if (!loading && !sessionError && (!user || user.role !== "ADMIN")) {
+      router.replace(user ? "/" : "/connexion");
+      router.refresh();
+    }
+  }, [loading, sessionError, user, router]);
+  const handleLogout = async () => {
+    if (leaving.current) return;
+    leaving.current = true;
+    setLoggingOut(true); setLogoutError("");
+    try {
+      await logout();
+      router.replace("/connexion");
+      router.refresh();
+    } catch (error) {
+      setLogoutError(error instanceof TypeError ? "Impossible de contacter le serveur." : error instanceof Error ? error.message : "La déconnexion a échoué.");
+    } finally { leaving.current = false; setLoggingOut(false); }
   };
 
   return (
@@ -119,6 +136,7 @@ export default function AdminSidebar() {
           <p className="text-xs font-bold uppercase tracking-[2px] text-[#65D900]">
             Administration
           </p>
+          {user && <p className="mt-2 truncate text-xs text-gray-400" title={user.name}>{user.name}</p>}
         </div>
 
         {/* Navigation */}
@@ -166,13 +184,15 @@ export default function AdminSidebar() {
 </Link>
   {/* Logout */}
   <button
+    type="button"
+    disabled={loggingOut}
     onClick={handleLogout}
-    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
+    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-red-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50 focus-visible:outline-2"
   >
     <LogOut size={20} />
-    Déconnexion
-  </button> 
-  
+    {loggingOut ? "Déconnexion…" : "Déconnexion"}
+  </button>
+  {logoutError && <p role="alert" className="mt-2 px-4 text-xs text-red-300">{logoutError}</p>}
 </div>
       </aside>
     </>

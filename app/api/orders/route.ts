@@ -3,6 +3,7 @@ import { OrderStatus, Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { readDeliveryFee } from "@/lib/order-delivery";
 import { z } from "zod";
+import { AuthError, authError, requireAdmin } from "@/lib/auth";
 
 const maxQuantity = 9999;
 const maxAmount = new Prisma.Decimal("999999999999999.999");
@@ -39,6 +40,7 @@ function json(body: unknown, status = 200) {
 }
 
 function handleError(error: unknown) {
+  if (error instanceof AuthError) return authError(error);
   if (error instanceof z.ZodError) return json({ error: "Données invalides.", issues: error.issues }, 400);
   if (error instanceof SyntaxError) return json({ error: "Corps JSON incorrect." }, 400);
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -54,9 +56,10 @@ function handleError(error: unknown) {
   return json({ error: "Erreur interne du serveur." }, 500);
 }
 
-// Local development only: protect administrative reads before publishing.
+// Administrative reads require an active administrator session.
 export async function GET(request: Request) {
   try {
+    await requireAdmin(request);
     const params = new URL(request.url).searchParams;
     for (const key of ["q", "status", "page", "pageSize"]) {
       if (params.getAll(key).length > 1) return json({ error: `Paramètre répété : ${key}` }, 400);

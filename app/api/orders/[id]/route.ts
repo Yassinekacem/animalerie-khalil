@@ -1,6 +1,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { AuthError, authError, requireAdmin } from "@/lib/auth";
 
 const idSchema = z.string().regex(/^[1-9]\d*$/, "Identifiant invalide.")
   .transform(Number).pipe(z.number().int().positive().max(2147483647));
@@ -10,9 +11,9 @@ function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-// Development only: protect order details with administrator authorization before publication.
 export async function GET(_request: Request, context: Context) {
   try {
+    await requireAdmin(_request);
     const id = idSchema.parse((await context.params).id);
     const order = await prisma.order.findUnique({
       where: { id },
@@ -21,6 +22,7 @@ export async function GET(_request: Request, context: Context) {
     if (!order) return json({ error: "Commande introuvable." }, 404);
     return json(order);
   } catch (error) {
+    if (error instanceof AuthError) return authError(error);
     if (error instanceof z.ZodError) {
       return json({ error: "Identifiant invalide.", issues: error.issues }, 400);
     }

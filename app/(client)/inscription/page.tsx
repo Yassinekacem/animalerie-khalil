@@ -1,7 +1,7 @@
-
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,12 +17,15 @@ import {
 
 export default function InscriptionPage() {
   const router = useRouter();
+  const { register } = useAuth();
+  const sending = useRef(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -42,13 +45,14 @@ export default function InscriptionPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (sending.current || success) return;
     setError("");
 
+    // Les données sont également validées par l’API.
     if (
       !formData.firstName ||
       !formData.lastName ||
       !formData.email ||
-      !formData.phone ||
       !formData.password ||
       !formData.confirmPassword
     ) {
@@ -58,6 +62,14 @@ export default function InscriptionPage() {
 
     if (formData.password.length < 8) {
       setError("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+    if (new TextEncoder().encode(formData.password).length > 72) {
+      setError("Le mot de passe ne doit pas dépasser 72 octets.");
+      return;
+    }
+    if (`${formData.firstName.trim()} ${formData.lastName.trim()}`.trim().length > 200) {
+      setError("Le nom complet ne doit pas dépasser 200 caractères.");
       return;
     }
 
@@ -72,35 +84,19 @@ export default function InscriptionPage() {
     }
 
     try {
+      sending.current = true;
       setIsLoading(true);
-
-      const response = await fetch("/api/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-        }),
+      await register({
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+        email: formData.email.trim(), phone: formData.phone.trim() || null,
+        password: formData.password, acceptTerms: true,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Une erreur est survenue lors de l'inscription.");
-        return;
-      }
-
-      router.push("/connexion");
-      router.refresh();
-
-    } catch {
-      setError("Impossible de contacter le serveur. Veuillez réessayer.");
+      setSuccess(true);
+      setFormData(current => ({ ...current, password: "", confirmPassword: "" }));
+    } catch (reason) {
+      setError(reason instanceof TypeError ? "Impossible de contacter le serveur." : reason instanceof Error ? reason.message : "Une erreur est survenue. Veuillez réessayer.");
     } finally {
+      sending.current = false;
       setIsLoading(false);
     }
   };
@@ -129,7 +125,7 @@ export default function InscriptionPage() {
               </h1>
 
               <p className="mt-6 max-w-sm text-sm leading-7 text-gray-400">
-                Créez votre compte et profitez d'une expérience
+                Créez votre compte et profitez d’une expérience
                 personnalisée pour prendre soin de vos compagnons.
                 Retrouvez vos produits préférés et suivez vos commandes
                 facilement.
@@ -190,7 +186,12 @@ export default function InscriptionPage() {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              {success ? <div role="status" className="rounded-xl border border-[#65D900]/40 bg-[#65D900]/10 p-5 text-sm text-gray-800">
+                <p className="font-bold">Votre compte a été créé.</p>
+                <p className="mt-2">Connectez-vous pour accéder à votre compte.</p>
+                <button type="button" onClick={() => { router.replace("/connexion"); router.refresh(); }} className="mt-4 rounded-xl bg-[#65D900] px-5 py-3 font-bold text-black focus-visible:outline-2 focus-visible:outline-offset-2">Se connecter</button>
+              </div> : <form onSubmit={handleSubmit} aria-busy={isLoading}>
+                <fieldset disabled={isLoading} className="min-w-0 space-y-4">
 
                 {/* First name and Last name */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -212,6 +213,7 @@ export default function InscriptionPage() {
                         type="text"
                         placeholder="Votre prénom"
                         autoComplete="given-name"
+                      maxLength={100}
                         value={formData.firstName}
                         onChange={handleChange}
                         required
@@ -237,6 +239,7 @@ export default function InscriptionPage() {
                         type="text"
                         placeholder="Votre nom"
                         autoComplete="family-name"
+                      maxLength={100}
                         value={formData.lastName}
                         onChange={handleChange}
                         required
@@ -264,6 +267,7 @@ export default function InscriptionPage() {
                       type="email"
                       placeholder="exemple@email.com"
                       autoComplete="email"
+                      maxLength={254}
                       value={formData.email}
                       onChange={handleChange}
                       required
@@ -278,7 +282,7 @@ export default function InscriptionPage() {
                     htmlFor="phone"
                     className="mb-2 block text-sm font-bold text-gray-800"
                   >
-                    Numéro de téléphone
+                    Numéro de téléphone (facultatif)
                   </label>
 
                   <div className="flex items-center rounded-xl border border-gray-200 bg-[#F8F9F7] px-4 transition focus-within:border-[#65D900] focus-within:ring-2 focus-within:ring-[#65D900]/15">
@@ -290,9 +294,9 @@ export default function InscriptionPage() {
                       type="tel"
                       placeholder="Ex. : 20 123 456"
                       autoComplete="tel"
+                      maxLength={32}
                       value={formData.phone}
                       onChange={handleChange}
-                      required
                       className="h-12 w-full bg-transparent px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
                     />
                   </div>
@@ -316,10 +320,11 @@ export default function InscriptionPage() {
                       type={showPassword ? "text" : "password"}
                       placeholder="Minimum 8 caractères"
                       autoComplete="new-password"
+                      minLength={8}
+                      maxLength={72}
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      minLength={8}
                       className="h-12 w-full bg-transparent px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
                     />
 
@@ -352,6 +357,8 @@ export default function InscriptionPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirmez votre mot de passe"
                       autoComplete="new-password"
+                      minLength={8}
+                      maxLength={72}
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
@@ -383,12 +390,12 @@ export default function InscriptionPage() {
                     htmlFor="acceptTerms"
                     className="cursor-pointer text-xs leading-5 text-gray-500"
                   >
-                    J'accepte les{" "}
+                    J’accepte les{" "}
                     <Link
                       href="/conditions-utilisation"
                       className="font-semibold text-[#55B900] hover:underline"
                     >
-                      conditions d'utilisation
+                      conditions d’utilisation
                     </Link>{" "}
                     et la politique de confidentialité.
                   </label>
@@ -398,7 +405,7 @@ export default function InscriptionPage() {
                 {error && (
                   <div
                     role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
+                    className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
                   >
                     {error}
                   </div>
@@ -419,7 +426,8 @@ export default function InscriptionPage() {
                     />
                   )}
                 </button>
-              </form>
+                </fieldset>
+              </form>}
 
               {/* Login link */}
               <div className="mt-7 text-center">

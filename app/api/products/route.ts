@@ -1,6 +1,7 @@
 import { Prisma, type Product as DatabaseProduct } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { AuthError, authError, requireAdmin } from "@/lib/auth";
 
 const categories = {
   chien: ["alimentation", "colliers-laisses", "hygiene-soins", "jouets-divertissement", "transport", "couchage-niches", "gamelles-distributeurs"],
@@ -40,6 +41,7 @@ function checkProduct(value: { targetAnimal: z.infer<typeof animalSchema>; categ
 }
 
 function handleError(error: unknown) {
+  if (error instanceof AuthError) return authError(error);
   if (error instanceof z.ZodError) {
     return Response.json({ error: "Données invalides.", issues: error.issues }, { status: 400 });
   }
@@ -145,6 +147,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await requireAdmin(request);
     const data = productSchema.parse(await request.json());
     const product = await prisma.product.create({
       data: { ...data, characteristics: data.characteristics as Prisma.InputJsonObject },

@@ -1,7 +1,7 @@
-
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -14,6 +14,8 @@ import {
 
 export default function ConnexionPage() {
   const router = useRouter();
+  const { login } = useAuth();
+  const sending = useRef(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -34,36 +36,33 @@ export default function ConnexionPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (sending.current) return;
     setError("");
 
+    // Les données sont également validées par l’API.
+    if (!formData.email || !formData.password) {
+      setError("Veuillez remplir tous les champs.");
+      return;
+    }
+    if (new TextEncoder().encode(formData.password).length > 72) {
+      setError("Le mot de passe ne doit pas dépasser 72 octets.");
+      return;
+    }
+
     try {
+      sending.current = true;
       setIsLoading(true);
-
-      const response = await fetch("/api/signin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          rememberMe,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Adresse e-mail ou mot de passe incorrect.");
-        return;
-      }
-
-      router.push("/");
+      const user = await login({ email: formData.email.trim(), password: formData.password, rememberMe });
+      const next = new URLSearchParams(window.location.search).get("next");
+      // Only local destinations are allowed; public accounts cannot enter the admin area.
+      const destination = next && next.startsWith("/") && !next.startsWith("//") && !/[\\\u0000-\u001f]/.test(next) &&
+        (user.role === "ADMIN" || !/^\/admin(?:\/|\?|$)/.test(next)) ? next : user.role === "ADMIN" ? "/admin" : "/";
+      router.replace(destination);
       router.refresh();
-
-    } catch {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+    } catch (reason) {
+      setError(reason instanceof TypeError ? "Impossible de contacter le serveur." : reason instanceof Error ? reason.message : "Une erreur est survenue. Veuillez réessayer.");
     } finally {
+      sending.current = false;
       setIsLoading(false);
     }
   };
@@ -128,7 +127,8 @@ export default function ConnexionPage() {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} aria-busy={isLoading}>
+                <fieldset disabled={isLoading} className="min-w-0 space-y-5">
 
                 {/* Email */}
                 <div>
@@ -148,6 +148,7 @@ export default function ConnexionPage() {
                       type="email"
                       placeholder="exemple@email.com"
                       autoComplete="email"
+                      maxLength={254}
                       value={formData.email}
                       onChange={handleChange}
                       required
@@ -166,12 +167,6 @@ export default function ConnexionPage() {
                       Mot de passe
                     </label>
 
-                    <Link
-                      href="/mot-de-passe-oublie"
-                      className="text-xs font-semibold text-[#55B900] transition hover:text-[#3E8900]"
-                    >
-                      Mot de passe oublié ?
-                    </Link>
                   </div>
 
                   <div className="flex items-center rounded-xl border border-gray-200 bg-[#F8F9F7] px-4 transition focus-within:border-[#65D900] focus-within:ring-2 focus-within:ring-[#65D900]/15">
@@ -183,6 +178,7 @@ export default function ConnexionPage() {
                       type={showPassword ? "text" : "password"}
                       placeholder="Entrez votre mot de passe"
                       autoComplete="current-password"
+                      maxLength={72}
                       value={formData.password}
                       onChange={handleChange}
                       required
@@ -230,7 +226,7 @@ export default function ConnexionPage() {
                 {error && (
                   <div
                     role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
+                    className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
                   >
                     {error}
                   </div>
@@ -251,12 +247,13 @@ export default function ConnexionPage() {
                     />
                   )}
                 </button>
+                </fieldset>
               </form>
 
               {/* Register */}
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-500">
-                  Vous n'avez pas encore de compte ?
+                  Vous n’avez pas encore de compte ?
                 </p>
 
                 <Link
