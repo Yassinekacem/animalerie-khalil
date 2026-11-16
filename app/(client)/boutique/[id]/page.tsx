@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useId, useState } from "react";
+import { Suspense, useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { animals, categories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
 import { MAX_CART_QUANTITY, useCart } from "@/lib/cart";
+import { useAuth } from "@/components/AuthProvider";
+import { accountRequest } from "@/components/AccountArea";
 
 /* ============================================================
    Types
@@ -219,6 +221,8 @@ function ProductDetails({ id }: { id: string }) {
    ============================================================ */
 
 function ProductContent({ product }: { product: Product }) {
+  const { user } = useAuth();
+  const reviews = useProductReviews(product.id);
   const [imageFailed, setImageFailed] = useState(false);
   const [quantity, setQuantity] = useState("1");
   const { count: cartCount, ready: cartReady, addItem } = useCart();
@@ -298,11 +302,14 @@ function ProductContent({ product }: { product: Product }) {
             {product.name}
           </h1>
 
-          {/* Note moyenne factice */}
+          {/* Note moyenne */}
           <div className="mt-3 flex items-center gap-2 text-sm">
-            <Stars value={4.6} size={16} />
-            <span className="font-semibold text-gray-800">4,6</span>
-            <span className="text-gray-500">· 12 avis</span>
+            {reviews.loading ? <span role="status" className="h-5 w-40 animate-pulse rounded bg-gray-200"><span className="sr-only">Chargement des avis…</span></span> :
+              reviews.data ? <a href="#reviews-title" className="flex items-center gap-2 rounded focus-visible:outline-2 focus-visible:outline-[#65D900]">
+                <Stars value={reviews.data.averageRating ?? 0} size={16} />
+                <span className="font-semibold text-gray-800">{reviews.data.averageRating === null ? "Pas encore de note" : reviews.data.averageRating.toFixed(1).replace(".", ",")}</span>
+                <span className="text-gray-500">· {reviews.data.reviewCount} avis</span>
+              </a> : <a href="#reviews-title" className="text-gray-500 underline">Avis indisponibles</a>}
           </div>
 
           <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-3 text-sm">
@@ -493,9 +500,9 @@ function ProductContent({ product }: { product: Product }) {
       </div>
 
       {/* ============================================================
-          Avis clients (simulés)
+          Avis clients
           ============================================================ */}
-      <ReviewsSection productName={product.name} />
+      <ReviewsSection key={user?.id ?? "guest"} productId={product.id} productName={product.name} {...reviews} />
     </article>
   );
 }
@@ -618,15 +625,19 @@ function Stars({ value, size = 16 }: { value: number; size?: number }) {
 function StarRatingInput({
   value,
   onChange,
+  labelledBy,
+  disabled = false,
 }: {
   value: number;
   onChange: (value: number) => void;
+  labelledBy: string;
+  disabled?: boolean;
 }) {
   const [hover, setHover] = useState(0);
-  const groupId = useId();
   const current = hover || value;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
     if (event.key === "ArrowRight" || event.key === "ArrowUp") {
       event.preventDefault();
       onChange(Math.min(5, value + 1));
@@ -645,7 +656,7 @@ function StarRatingInput({
   return (
     <div
       role="radiogroup"
-      aria-labelledby={`${groupId}-label`}
+      aria-labelledby={labelledBy}
       className="inline-flex items-center gap-1"
       onMouseLeave={() => setHover(0)}
       onKeyDown={handleKeyDown}
@@ -654,6 +665,7 @@ function StarRatingInput({
         <button
           key={star}
           type="button"
+          disabled={disabled}
           role="radio"
           aria-checked={value === star}
           aria-label={`${star} étoile${star > 1 ? "s" : ""}`}
@@ -677,210 +689,234 @@ function StarRatingInput({
 }
 
 /* ============================================================
-   Section avis clients (simulée)
+   Avis clients
    ============================================================ */
 
 type Review = {
   id: number;
-  author: string;
+  userId: number;
+  productId: number;
   rating: number;
-  comment: string;
-  date: string;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: { name: string; image: string | null };
 };
+type ReviewsData = { reviews: Review[]; averageRating: number | null; reviewCount: number };
 
-const sampleReviews: Review[] = [
-  {
-    id: 1,
-    author: "Sarah B.",
-    rating: 5,
-    comment:
-      "Excellent produit, mon chat l’adore ! Livraison rapide et emballage soigné. Je recommande.",
-    date: "12/10/2026",
-  },
-  {
-    id: 2,
-    author: "Karim T.",
-    rating: 4,
-    comment:
-      "Très bonne qualité, conforme à la description. Un peu cher mais ça vaut le coup sur la durée.",
-    date: "28/09/2026",
-  },
-  {
-    id: 3,
-    author: "Ines M.",
-    rating: 5,
-    comment: "Parfait pour mon chien, il en raffole. Le service client est également très réactif.",
-    date: "05/09/2026",
-  },
-];
-
-function ReviewsSection({ productName }: { productName: string }) {
-  const [reviews, setReviews] = useState<Review[]>(sampleReviews);
-  const [form, setForm] = useState({ name: "", rating: 5, comment: "" });
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
-
-  const average =
-    reviews.length > 0
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-      : 0;
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-
-    if (!form.name.trim()) {
-      setError("Merci d’indiquer votre nom.");
-      return;
-    }
-    if (!form.comment.trim()) {
-      setError("Merci d’écrire un commentaire.");
-      return;
-    }
-    if (form.rating < 1 || form.rating > 5) {
-      setError("Veuillez choisir une note entre 1 et 5 étoiles.");
-      return;
-    }
-
-    const newReview: Review = {
-      id: Date.now(),
-      author: form.name.trim(),
-      rating: form.rating,
-      comment: form.comment.trim(),
-      date: new Date().toLocaleDateString("fr-FR"),
-    };
-
-    setReviews(prev => [newReview, ...prev]);
-    setForm({ name: "", rating: 5, comment: "" });
-    setSubmitted(true);
+function reviewStatistics(reviews: Review[]): ReviewsData {
+  return {
+    reviews,
+    reviewCount: reviews.length,
+    averageRating: reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : null,
   };
+}
+
+function useProductReviews(productId: number) {
+  const { refresh } = useAuth();
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{ attempt: number; data?: ReviewsData; error?: string }>({ attempt: -1 });
+  useEffect(() => {
+    const controller = new AbortController();
+    void accountRequest<ReviewsData>(`/api/products/${productId}/reviews`, { signal: controller.signal }, refresh)
+      .then(data => {
+        if (!Array.isArray(data.reviews) || data.reviewCount !== data.reviews.length ||
+          (data.averageRating !== null && (typeof data.averageRating !== "number" || !Number.isFinite(data.averageRating) || data.averageRating < 1 || data.averageRating > 5))) {
+          throw new Error("La réponse des avis est incorrecte.");
+        }
+        if (!controller.signal.aborted) setResult({ attempt, data });
+      })
+      .catch(reason => {
+        if (!controller.signal.aborted) setResult({ attempt, error: reason instanceof Error ? reason.message : "Impossible de charger les avis." });
+      });
+    return () => controller.abort();
+  }, [productId, attempt, refresh]);
+
+  return {
+    data: result.attempt === attempt ? result.data : undefined,
+    error: result.attempt === attempt ? result.error : undefined,
+    loading: result.attempt !== attempt,
+    reload: () => setAttempt(value => value + 1),
+    onSave: (review: Review) => setResult(current => ({
+      ...current,
+      data: reviewStatistics([review, ...(current.data?.reviews ?? []).filter(item => item.id !== review.id)]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)),
+    })),
+    onRemove: (id: number) => setResult(current => ({
+      ...current, data: reviewStatistics((current.data?.reviews ?? []).filter(review => review.id !== id)),
+    })),
+  };
+}
+
+function ReviewsSection({
+  productId, productName, data, loading, error: loadError, reload, onSave, onRemove,
+}: {
+  productId: number;
+  productName: string;
+  data?: ReviewsData;
+  loading: boolean;
+  error?: string;
+  reload: () => void;
+  onSave: (review: Review) => void;
+  onRemove: (id: number) => void;
+}) {
+  const { user, loading: authLoading, error: authError, refresh } = useAuth();
+  const [form, setForm] = useState({ rating: 5, comment: "" });
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState<"" | "save" | "delete">("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const sending = useRef(false);
+  const controller = useRef<AbortController | null>(null);
+  const ratingLabelId = useId();
+  const ownReview = data?.reviews.find(review => review.userId === user?.id);
+  const canWrite = Boolean(user && !authLoading && !authError && data && !loading);
+  const formDisabled = !canWrite || Boolean(busy);
+  const loginHref = `/connexion?next=${encodeURIComponent(`/boutique/${productId}`)}`;
+
+  useEffect(() => () => controller.current?.abort(), []);
+
+  function startEditing(review: Review) {
+    setForm({ rating: review.rating, comment: review.comment ?? "" });
+    setEditing(true); setError(""); setMessage(""); setConfirmDelete(false);
+  }
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sending.current || !canWrite) return;
+    if (!Number.isInteger(form.rating) || form.rating < 1 || form.rating > 5) {
+      setError("Veuillez choisir une note entre 1 et 5 étoiles."); return;
+    }
+    if (form.comment.trim().length > 2000) { setError("Le commentaire ne doit pas dépasser 2 000 caractères."); return; }
+    sending.current = true;
+    const request = new AbortController();
+    controller.current = request;
+    setBusy("save"); setError(""); setMessage("");
+    const modifying = editing && ownReview;
+    try {
+      const saved = await accountRequest<{ review: Review }>(
+        modifying ? `/api/reviews/${ownReview.id}` : `/api/products/${productId}/reviews`,
+        {
+          method: modifying ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rating: form.rating, comment: form.comment.trim() || null }),
+          signal: request.signal,
+        }, refresh,
+      );
+      if (request.signal.aborted) return;
+      onSave(saved.review);
+      setEditing(false); setForm({ rating: 5, comment: "" });
+      setMessage(modifying ? "Votre avis a été modifié." : "Merci ! Votre avis a été publié.");
+    } catch (reason) {
+      if (!request.signal.aborted) setError(reason instanceof Error ? reason.message : "Impossible d’enregistrer votre avis.");
+    } finally {
+      sending.current = false;
+      if (!request.signal.aborted) setBusy("");
+    }
+  }
+
+  async function removeReview() {
+    if (sending.current || !canWrite || !ownReview) return;
+    sending.current = true;
+    const request = new AbortController();
+    controller.current = request;
+    setBusy("delete"); setError(""); setMessage("");
+    try {
+      await accountRequest(`/api/reviews/${ownReview.id}`, { method: "DELETE", signal: request.signal }, refresh);
+      if (request.signal.aborted) return;
+      onRemove(ownReview.id);
+      setEditing(false); setConfirmDelete(false); setForm({ rating: 5, comment: "" });
+      setMessage("Votre avis a été supprimé.");
+    } catch (reason) {
+      if (!request.signal.aborted) setError(reason instanceof Error ? reason.message : "Impossible de supprimer votre avis.");
+    } finally {
+      sending.current = false;
+      if (!request.signal.aborted) setBusy("");
+    }
+  }
 
   return (
     <section aria-labelledby="reviews-title" className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 id="reviews-title" className="text-xl font-extrabold sm:text-2xl">
-            Avis clients
-          </h2>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-[#55B900]">
-            Exemples de démonstration
-          </p>
+          <h2 id="reviews-title" className="text-xl font-extrabold sm:text-2xl">Avis clients</h2>
+          <p className="mt-1 break-words text-xs font-semibold uppercase tracking-widest text-[#55B900]">Votre expérience avec {productName}</p>
         </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3">
-          <span className="text-3xl font-extrabold text-gray-900">
-            {average.toFixed(1).replace(".", ",")}
-          </span>
-          <div>
-            <Stars value={average} size={18} />
-            <p className="mt-1 text-xs text-gray-500">
-              sur 5 · {reviews.length} avis
-            </p>
-          </div>
-        </div>
+        {!loading && data && <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3" aria-label={data.averageRating === null ? "Aucune note" : `Note moyenne : ${data.averageRating.toFixed(1)} sur 5, ${data.reviewCount} avis`}>
+          <span className="text-3xl font-extrabold text-gray-900">{data.averageRating === null ? "—" : data.averageRating.toFixed(1).replace(".", ",")}</span>
+          <div><Stars value={data.averageRating ?? 0} size={18} /><p className="mt-1 text-xs text-gray-500">sur 5 · {data.reviewCount} avis</p></div>
+        </div>}
       </div>
 
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <p className="whitespace-pre-line">{error}</p>
+        <button type="button" disabled={Boolean(busy)} onClick={() => { setError(""); reload(); }} className="mt-2 rounded font-semibold underline focus-visible:outline-2 focus-visible:outline-offset-2">Actualiser les avis</button>
+      </div>}
+      {message && <p role="status" className="flex items-center gap-2 text-sm text-[#438F00]"><Check size={16} aria-hidden="true" />{message}</p>}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Liste des avis */}
-        <ul className="space-y-3">
-          {reviews.map(review => (
-            <li
-              key={review.id}
-              className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#65D900]/15 text-xs font-extrabold text-[#438F00]">
-                    {review.author.charAt(0).toUpperCase()}
-                  </span>
-                  <span className="text-sm font-bold text-gray-900">{review.author}</span>
+        <div className="min-w-0">
+          {loading ? <div role="status" aria-label="Chargement des avis" className="space-y-3">
+            {[0, 1, 2].map(index => <div key={index} aria-hidden="true" className="space-y-3 rounded-2xl border border-gray-100 bg-white p-5"><div className="h-8 w-40 animate-pulse rounded bg-gray-200" /><div className="h-3 w-24 animate-pulse rounded bg-gray-200" /><div className="h-12 animate-pulse rounded bg-gray-200" /></div>)}
+          </div> : loadError ? <div role="alert" className="rounded-2xl border border-gray-100 bg-white p-5">
+            <p className="text-sm text-red-700">{loadError}</p>
+            <button type="button" onClick={reload} className="mt-3 rounded font-bold text-[#438F00] underline focus-visible:outline-2 focus-visible:outline-offset-2">Réessayer</button>
+          </div> : data?.reviews.length === 0 ? <p className="rounded-2xl border border-gray-100 bg-white p-5 text-sm leading-6 text-gray-500">Aucun avis pour le moment. Soyez le premier à partager votre expérience.</p> :
+            <ul className="space-y-3">
+              {data?.reviews.map(review => <li key={review.id} className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={review.user.image || "/Unknown.jpg"} alt={`Photo de ${review.user.name}`} width={32} height={32}
+                      onError={event => { if (!event.currentTarget.src.endsWith("/Unknown.jpg")) event.currentTarget.src = "/Unknown.jpg"; }}
+                      className="h-8 w-8 shrink-0 rounded-full bg-gray-100 object-cover" />
+                    <span className="min-w-0 break-words text-sm font-bold text-gray-900">{review.user.name}</span>
+                  </div>
+                  <time dateTime={review.createdAt} className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString("fr-TN", { day: "numeric", month: "long", year: "numeric" })}</time>
                 </div>
-                <span className="text-xs text-gray-500">{review.date}</span>
+                <div className="mt-2" aria-label={`Note : ${review.rating} sur 5`}><Stars value={review.rating} size={14} /></div>
+                {review.comment && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-600">{review.comment}</p>}
+                {canWrite && review.userId === user?.id && <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 text-xs">
+                  {confirmDelete ? <>
+                    <span className="text-gray-600">Supprimer votre avis ?</span>
+                    <button type="button" disabled={Boolean(busy)} onClick={() => void removeReview()} className="rounded font-semibold text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{busy === "delete" ? "Suppression…" : "Confirmer"}</button>
+                    <button type="button" disabled={Boolean(busy)} onClick={() => setConfirmDelete(false)} className="rounded font-semibold text-gray-600 focus-visible:outline-2 focus-visible:outline-offset-2">Annuler</button>
+                  </> : <>
+                    <button type="button" disabled={Boolean(busy)} onClick={() => startEditing(review)} className="rounded font-semibold text-[#438F00] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Modifier</button>
+                    <button type="button" disabled={Boolean(busy)} onClick={() => setConfirmDelete(true)} className="rounded font-semibold text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Supprimer</button>
+                  </>}
+                </div>}
+              </li>)}
+            </ul>}
+        </div>
+
+        {authLoading ? <p role="status" className="self-start rounded-2xl border border-gray-100 bg-white p-5 text-sm text-gray-500">Vérification de votre session…</p> :
+          authError ? <div role="alert" className="self-start rounded-2xl border border-gray-100 bg-white p-5 text-sm text-red-700"><p>{authError}</p><button type="button" onClick={() => void refresh()} className="mt-2 rounded font-semibold underline focus-visible:outline-2">Réessayer</button></div> :
+          !user ? <div className="space-y-4 self-start rounded-2xl border border-gray-100 bg-white p-5">
+            <h3 className="text-base font-extrabold">Laisser un avis</h3>
+            <p className="text-sm leading-6 text-gray-500">Connectez-vous pour noter ce produit et partager votre expérience.</p>
+            <Link href={loginHref} className="inline-flex rounded-xl bg-[#65D900] px-4 py-3 text-sm font-bold text-black hover:bg-[#55BD00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900]">Se connecter</Link>
+          </div> : ownReview && !editing ? <div className="space-y-4 self-start rounded-2xl border border-gray-100 bg-white p-5">
+            <h3 className="text-base font-extrabold">Votre avis est publié</h3>
+            <p className="text-sm leading-6 text-gray-500">Vous pouvez modifier votre note et votre commentaire à tout moment.</p>
+            <button type="button" disabled={formDisabled} onClick={() => startEditing(ownReview)} className="rounded-xl bg-[#65D900] px-4 py-3 text-sm font-bold text-black hover:bg-[#55BD00] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Modifier mon avis</button>
+          </div> : <form onSubmit={submit} aria-labelledby="review-form-title" aria-busy={Boolean(busy)} className="self-start rounded-2xl border border-gray-100 bg-white p-5">
+            <fieldset disabled={formDisabled} className="min-w-0 space-y-4">
+              <legend id="review-form-title" className="mb-4 text-base font-extrabold">{editing ? "Modifier mon avis" : "Laisser un avis"}</legend>
+              <p className="text-xs text-gray-500">Publié en tant que <span className="font-semibold text-gray-800">{user.name}</span>.</p>
+              <div>
+                <span id={ratingLabelId} className="mb-1.5 block text-sm font-medium">Note</span>
+                <StarRatingInput value={form.rating} onChange={rating => setForm(current => ({ ...current, rating }))} labelledBy={ratingLabelId} disabled={formDisabled} />
+                <p className="mt-1 text-xs text-gray-500">{form.rating} étoile{form.rating > 1 ? "s" : ""} sur 5</p>
               </div>
-              <div className="mt-2">
-                <Stars value={review.rating} size={14} />
-              </div>
-              <p className="mt-2 break-words text-sm leading-6 text-gray-600">
-                {review.comment}
-              </p>
-            </li>
-          ))}
-        </ul>
-
-        {/* Formulaire */}
-        <form
-          onSubmit={handleSubmit}
-          aria-labelledby="review-form-title"
-          className="space-y-4 self-start rounded-2xl border border-gray-100 bg-white p-5"
-        >
-          <div>
-            <h3 id="review-form-title" className="text-base font-extrabold">
-              Laisser un avis
-            </h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Avis de démonstration — non publié réellement.
-            </p>
-          </div>
-
-          <label className="block text-sm font-medium">
-            Nom
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))}
-              placeholder="Votre prénom"
-              className="mt-1.5 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#65D900] focus:ring-2 focus:ring-[#65D900]/30"
-            />
-          </label>
-
-          <div>
-            <span
-              id={`${useId()}-label`}
-              className="mb-1.5 block text-sm font-medium"
-            >
-              Note
-            </span>
-            <StarRatingInput
-              value={form.rating}
-              onChange={rating => setForm(prev => ({ ...prev, rating }))}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              {form.rating} étoile{form.rating > 1 ? "s" : ""} sur 5
-            </p>
-          </div>
-
-          <label className="block text-sm font-medium">
-            Commentaire
-            <textarea
-              required
-              rows={4}
-              value={form.comment}
-              onChange={event => setForm(prev => ({ ...prev, comment: event.target.value }))}
-              placeholder="Partagez votre expérience…"
-              className="mt-1.5 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#65D900] focus:ring-2 focus:ring-[#65D900]/30"
-            />
-          </label>
-
-          {error && (
-            <p role="alert" className="text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            className="w-full rounded-xl bg-[#65D900] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#55BD00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900]"
-          >
-            Publier l’avis
-          </button>
-
-          {submitted && (
-            <p role="status" className="flex items-center gap-2 text-sm text-[#438F00]">
-              <Check size={16} aria-hidden="true" />
-              Merci ! Votre avis a été ajouté à titre d’exemple.
-            </p>
-          )}
-        </form>
+              <label className="block text-sm font-medium">Commentaire <span className="font-normal text-gray-500">(facultatif)</span>
+                <textarea rows={4} maxLength={2000} value={form.comment} onChange={event => setForm(current => ({ ...current, comment: event.target.value }))} placeholder="Partagez votre expérience…" className="mt-1.5 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#65D900] focus:ring-2 focus:ring-[#65D900]/30" />
+              </label>
+              <button type="submit" disabled={formDisabled} className="w-full rounded-xl bg-[#65D900] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#55BD00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900] disabled:cursor-not-allowed disabled:opacity-50">{busy === "save" ? "Enregistrement…" : editing ? "Enregistrer les modifications" : "Publier l’avis"}</button>
+              {editing && <button type="button" onClick={() => { setEditing(false); setError(""); }} className="w-full rounded py-1 text-sm font-semibold text-gray-500 focus-visible:outline-2 focus-visible:outline-[#65D900]">Annuler</button>}
+            </fieldset>
+          </form>}
       </div>
     </section>
   );
