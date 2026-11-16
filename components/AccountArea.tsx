@@ -3,7 +3,7 @@
 import { Fragment, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { UserRound, ShoppingBag } from "lucide-react";
+import { UserRound, ShoppingBag, Heart } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 export const accountButton = "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900] disabled:cursor-not-allowed disabled:opacity-50";
@@ -35,7 +35,7 @@ export default function AccountArea({ children }: { children: ReactNode }) {
       <p className="mb-2 text-xs font-bold uppercase tracking-widest text-[#438F00]">Animalerie Khalil</p>
       <h1 className="text-3xl font-extrabold text-gray-900">Mon compte</h1>
       <nav aria-label="Espace client" className="my-6 flex flex-wrap gap-2">
-        {[{ href: "/compte/profil", label: "Mon profil", Icon: UserRound }, { href: "/compte/commandes", label: "Mes commandes", Icon: ShoppingBag }].map(({ href, label, Icon }) =>
+        {[{ href: "/compte/profil", label: "Mon profil", Icon: UserRound }, { href: "/compte/commandes", label: "Mes commandes", Icon: ShoppingBag }, { href: "/compte/favoris", label: "Mes favoris", Icon: Heart }].map(({ href, label, Icon }) =>
           <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} className={`${accountButton} ${pathname === href ? "bg-[#65D900] text-black" : "bg-white text-gray-600 hover:text-black"}`}><Icon size={18} aria-hidden="true" />{label}</Link>)}
       </nav>
       <Fragment key={user.id}>{children}</Fragment>

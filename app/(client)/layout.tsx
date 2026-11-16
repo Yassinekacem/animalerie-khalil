@@ -1,6 +1,7 @@
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import WishlistProvider from "@/components/WishlistProvider";
 
 export default function ClientLayout({
   children,
@@ -8,7 +9,7 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <WishlistProvider><div className="min-h-screen flex flex-col">
       <Navbar /> 
 
       <main className="flex-1">
@@ -16,6 +17,6 @@ export default function ClientLayout({
       </main>
              
       <Footer />
-    </div>
+    </div></WishlistProvider>
   );
 }

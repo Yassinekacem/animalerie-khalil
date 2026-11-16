@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useWishlist } from "@/components/WishlistProvider";
 import { animals, categories as productCategories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { 
-  Hand,
   ArrowRight,
   ShoppingCart,
   Heart,
@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Headphones,
   Gift,
-  Mail,
 } from "lucide-react";
 
 // ================= DATA =================
@@ -157,6 +156,9 @@ const underlineVariants: Variants = {
 
 // Reuse the existing home product card with the real catalogue fields.
 function ProductCard({ product }: { product: Product }) {
+  const { isFavorite, isPending, loading: wishlistLoading, toggleFavorite } = useWishlist();
+  const favorite = isFavorite(product.id);
+  const favoritePending = isPending(product.id);
   const [imageFailed, setImageFailed] = useState(false);
   const validImage =
     /^\/(?!\/)/.test(product.image) || /^https?:\/\//i.test(product.image);
@@ -194,11 +196,17 @@ function ProductCard({ product }: { product: Product }) {
         )}
 
         <button
-          aria-label="Ajouter aux favoris"
-          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow transition hover:bg-[#65D900] sm:right-3 sm:top-3 sm:h-9 sm:w-9"
+          type="button"
+          onClick={() => void toggleFavorite(product.id)}
+          disabled={wishlistLoading || favoritePending}
+          aria-label={favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+          aria-pressed={favorite}
+          aria-busy={wishlistLoading || favoritePending}
+          title={wishlistLoading || favoritePending ? "Chargement des favoris…" : favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow transition hover:bg-[#65D900] disabled:cursor-wait disabled:opacity-60 sm:right-3 sm:top-3 sm:h-9 sm:w-9"
         >
-          <Heart size={15} className="sm:hidden" />
-          <Heart size={17} className="hidden sm:block" />
+          <Heart size={15} className={`sm:hidden ${favorite ? "fill-red-500 text-red-500" : ""}`} />
+          <Heart size={17} className={`hidden sm:block ${favorite ? "fill-red-500 text-red-500" : ""}`} />
         </button>
       </div>
 
@@ -359,7 +367,7 @@ export default function HomePage() {
                 ease: [0.22, 1, 0.36, 1],
               }}
             >
-              Découvrez notre sélection d'alimentation, accessoires
+              Découvrez notre sélection d’alimentation, accessoires
               et produits essentiels pour prendre soin de vos animaux
               avec amour.
             </motion.p>

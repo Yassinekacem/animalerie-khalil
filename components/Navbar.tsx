@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
+import { useWishlist } from "@/components/WishlistProvider";
 import {
   ShoppingCart,
   UserRound,
@@ -19,6 +20,7 @@ import {
   ChevronDown,
   ShoppingBag,
   Settings,
+  Heart,
 } from "lucide-react";
 
 const navLinks = [
@@ -41,6 +43,7 @@ function NavigationReset({ onNavigate }: { onNavigate: () => void }) {
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { count } = useCart();
+  const { count: wishlistCount, loading: wishlistLoading } = useWishlist();
 
   const { user, loading, error: sessionError, refresh, logout } = useAuth();
   const router = useRouter();
@@ -72,6 +75,7 @@ export default function Navbar() {
   const accountLinks = [
     { href: "/compte/profil", label: "Mon profil", Icon: UserRound },
     { href: "/compte/commandes", label: "Mes commandes", Icon: ShoppingBag },
+    { href: "/compte/favoris", label: "Mes favoris", Icon: Heart },
     ...(user?.role === "ADMIN" ? [{ href: "/admin", label: "Administration", Icon: Settings }] : []),
   ];
 
@@ -103,7 +107,7 @@ export default function Navbar() {
 
       {/* Main Navbar */}
       <div className="border-b border-white/10 bg-[#010101]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-1 px-4 py-3 sm:gap-4 lg:px-8">
 
           {/* Logo */}
           <Link href="/" className="shrink-0">
@@ -153,6 +157,17 @@ export default function Navbar() {
                 </Link>
               </>
             )}
+
+            <Link
+              href={!loading && !user ? "/connexion" : "/compte/favoris"}
+              aria-label={wishlistCount === null || wishlistLoading ? "Mes favoris" : `Mes favoris (${wishlistCount} produit${wishlistCount > 1 ? "s" : ""})`}
+              aria-busy={wishlistLoading}
+              onClick={closeMenus}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black focus-visible:outline-2 focus-visible:outline-[#65D900]"
+            >
+              <Heart size={22} aria-hidden="true" />
+              {!wishlistLoading && wishlistCount !== null && <span aria-live="polite" className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#65D900] px-1 text-[11px] font-bold text-black">{wishlistCount}</span>}
+            </Link>
 
             {/* Cart - Always visible */}
             <Link
