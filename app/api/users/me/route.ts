@@ -6,11 +6,21 @@ import { AuthError, authError, authJson, publicUserSelect, requireUser } from "@
 
 const select = { ...publicUserSelect, sexe: true, updatedAt: true } as const;
 const schema = z.strictObject({
-  name: z.string().trim().min(2, "Le nom doit contenir au moins deux caractères.").max(200),
-  email: z.string().trim().toLowerCase().email("Adresse e-mail invalide.").max(254),
-  phone: z.string().trim().max(32).nullable().transform(value => value || null),
-  sexe: z.enum(["HOMME", "FEMME"]).nullable(),
+  name: z.string().trim().min(2, "Le nom doit contenir au moins deux caractères.").max(200).optional(),
+  email: z.string().trim().toLowerCase().email("Adresse e-mail invalide.").max(254).optional(),
+  phone: z.string().trim().max(32).nullable().transform(value => value || null).optional(),
+  sexe: z.enum(["HOMME", "FEMME"]).nullable().optional(),
+  image: z.string().trim().url("URL de photo invalide.").max(2048).refine(value => {
+    try {
+      const url = new URL(value);
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      return Boolean(cloudName) && url.protocol === "https:" && url.hostname === "res.cloudinary.com" && !url.port &&
+        url.pathname.startsWith(`/${cloudName}/image/upload/`) && !url.username && !url.password;
+    } catch { return false; }
+  }, "La photo doit provenir du compte Cloudinary configuré.").nullable().optional(),
   updatedAt: z.iso.datetime(),
+}).refine(fields => [fields.name, fields.email, fields.phone, fields.sexe, fields.image].some(value => value !== undefined), {
+  message: "Indiquez au moins un champ à modifier.",
 });
 
 export async function GET(request: Request) {
@@ -23,16 +33,17 @@ export async function GET(request: Request) {
   } catch (error) { return authError(error); }
 }
 
-export async function PUT(request: Request) {
+export async function PATCH(request: Request) {
   try {
     const user = await requireUser(request);
     const { updatedAt, ...data } = schema.parse(await request.json());
-    // Serialize the case-insensitive uniqueness check and the profile update.
-    const profile = await prisma.$transaction(async tx => {
+    const where = { id: user.id, isActif: true, updatedAt: new Date(updatedAt) };
+    // Serialize the email uniqueness check with the update only when needed.
+    const profile = data.email !== undefined ? await prisma.$transaction(async tx => {
       const duplicate = await tx.user.findFirst({ where: { email: { equals: data.email, mode: "insensitive" }, id: { not: user.id } }, select: { id: true } });
       if (duplicate) throw new AuthError("Cette adresse e-mail est déjà utilisée.", 409);
-      return tx.user.update({ where: { id: user.id, isActif: true, updatedAt: new Date(updatedAt) }, data, select });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      return tx.user.update({ where, data, select });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }) : await prisma.user.update({ where, data, select });
     return authJson(profile);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2025", "P2034"].includes(error.code)) {

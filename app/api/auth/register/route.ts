@@ -9,6 +9,14 @@ const schema = z.strictObject({
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères.")
     .refine(value => Buffer.byteLength(value, "utf8") <= 72, "Le mot de passe ne doit pas dépasser 72 octets."),
   phone: z.string().trim().max(32).nullable().optional().transform(value => value || null),
+  image: z.string().trim().url("URL de photo invalide.").max(2048).refine(value => {
+    try {
+      const url = new URL(value);
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      return Boolean(cloudName) && url.protocol === "https:" && url.hostname === "res.cloudinary.com" && !url.port &&
+        url.pathname.startsWith(`/${cloudName}/image/upload/`) && !url.username && !url.password;
+    } catch { return false; }
+  }, "La photo doit provenir du compte Cloudinary configuré.").nullable().optional(),
   acceptTerms: z.literal(true, { error: "Veuillez accepter les conditions d’utilisation." }),
 });
 
@@ -20,7 +28,7 @@ export async function POST(request: Request) {
     const existing = await prisma.user.findFirst({ where: { email: { equals: data.email, mode: "insensitive" } }, select: { id: true } });
     if (existing) return authJson({ error: "Cette adresse e-mail est déjà utilisée." }, 409);
     const user = await prisma.user.create({
-      data: { name: data.name, email: data.email, phone: data.phone, password: await hash(data.password, 12), role: "CLIENT", isActif: true },
+      data: { name: data.name, email: data.email, phone: data.phone, image: data.image ?? null, password: await hash(data.password, 12), role: "CLIENT", isActif: true },
       select: publicUserSelect,
     });
     return authJson({ user }, 201);

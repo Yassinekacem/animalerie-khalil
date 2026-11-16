@@ -170,7 +170,7 @@ function ProductCard({ product }: { product: Product }) {
         <Link
           href={`/boutique/${product.id}`}
           aria-label={`Voir ${product.name}`}
-          className="block h-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#65D900]"
+          className="relative block h-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#65D900]"
         >
           <Image
             src={image}

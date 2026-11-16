@@ -10,7 +10,7 @@ export type AuthUser = {
   phone: string | null;
   image: string | null;
 };
-type Registration = { name: string; email: string; password: string; phone: string | null; acceptTerms: true };
+type Registration = { name: string; email: string; password: string; phone: string | null; image?: string | null; acceptTerms: true };
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
