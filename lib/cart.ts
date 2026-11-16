@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { formatPrice } from "@/lib/catalogue";
 
 export type CartProduct = {
@@ -12,7 +13,6 @@ export type CartProduct = {
 };
 export type CartItem = CartProduct & { quantity: number };
 
-const STORAGE_KEY = "animalerie-khalil:cart:v1";
 const CHANGE_EVENT = "animalerie-khalil:cart-change";
 // Technical input limit, independent of product stock.
 export const MAX_CART_QUANTITY = 9999;
@@ -60,9 +60,10 @@ export function formatMillimes(amount: number) {
   return formatPrice((amount / 1000).toFixed(3));
 }
 
-function getSnapshot() {
+function getSnapshot(storageKey: string | null) {
+  if (storageKey === null) return null;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? "[]";
+    return window.localStorage.getItem(storageKey) ?? "[]";
   } catch {
     return "[]";
   }
@@ -73,25 +74,30 @@ function getServerSnapshot() {
   return null;
 }
 
-function subscribe(onChange: () => void) {
+function subscribe(storageKey: string | null, onChange: () => void) {
+  if (storageKey === null) return () => {};
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) onChange();
+    if (event.key === storageKey || event.key === null) onChange();
+  };
+  const onCartChange = (event: Event) => {
+    if ((event as CustomEvent<string>).detail === storageKey) onChange();
   };
   window.addEventListener("storage", onStorage);
-  window.addEventListener(CHANGE_EVENT, onChange);
+  window.addEventListener(CHANGE_EVENT, onCartChange);
   return () => {
     window.removeEventListener("storage", onStorage);
-    window.removeEventListener(CHANGE_EVENT, onChange);
+    window.removeEventListener(CHANGE_EVENT, onCartChange);
   };
 }
 
-function changeCart(update: (items: CartItem[]) => CartItem[] | null) {
+function changeCart(storageKey: string | null, update: (items: CartItem[]) => CartItem[] | null) {
+  if (storageKey === null) return false;
   try {
     // Read the latest cart, including changes made in another tab.
-    const items = update(readItems(window.localStorage.getItem(STORAGE_KEY)));
+    const items = update(readItems(window.localStorage.getItem(storageKey)));
     if (!items || !Number.isSafeInteger(items.reduce((sum, item) => sum + getUnitPriceMillimes(item) * item.quantity, 0))) return false;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    window.dispatchEvent(new Event(CHANGE_EVENT));
+    window.localStorage.setItem(storageKey, JSON.stringify(items));
+    window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: storageKey }));
     return true;
   } catch {
     // Do not announce a successful add when browser storage is unavailable.
@@ -99,9 +105,9 @@ function changeCart(update: (items: CartItem[]) => CartItem[] | null) {
   }
 }
 
-function addItem(product: CartProduct, quantity = 1) {
+function addItem(storageKey: string | null, product: CartProduct, quantity = 1) {
   if (!validProduct(product) || !validQuantity(quantity)) return false;
-  return changeCart(items => {
+  return changeCart(storageKey, items => {
     const existing = items.find(item => item.id === product.id);
     const combined = (existing?.quantity ?? 0) + quantity;
     if (!validQuantity(combined)) return null;
@@ -111,29 +117,37 @@ function addItem(product: CartProduct, quantity = 1) {
   });
 }
 
-function setQuantity(id: number, quantity: number) {
+function setQuantity(storageKey: string | null, id: number, quantity: number) {
   if (!validQuantity(quantity)) return false;
-  return changeCart(items => items.map(item => item.id === id ? { ...item, quantity } : item));
+  return changeCart(storageKey, items => items.map(item => item.id === id ? { ...item, quantity } : item));
 }
 
-function removeItem(id: number) {
-  return changeCart(items => items.filter(item => item.id !== id));
-}
-
-function clearItems() {
-  return changeCart(() => []);
+function removeItem(storageKey: string | null, id: number) {
+  return changeCart(storageKey, items => items.filter(item => item.id !== id));
 }
 
 export function useCart() {
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { user, loading, error: sessionError, refresh: retrySession } = useAuth();
+  // An unresolved session must not read or modify the guest cart by default.
+  const storageKey = loading || sessionError ? null : user ? `cart_user_${user.id}` : "cart_guest";
+  const subscribeToCart = useCallback((onChange: () => void) => subscribe(storageKey, onChange), [storageKey]);
+  const readSnapshot = useCallback(() => getSnapshot(storageKey), [storageKey]);
+  const snapshot = useSyncExternalStore(subscribeToCart, readSnapshot, getServerSnapshot);
   const items = useMemo(() => readItems(snapshot), [snapshot]);
+  // Bind actions to their owner, including a checkout that finishes after a session change.
+  const actions = useMemo(() => ({
+    addItem: (product: CartProduct, quantity = 1) => addItem(storageKey, product, quantity),
+    setQuantity: (id: number, quantity: number) => setQuantity(storageKey, id, quantity),
+    removeItem: (id: number) => removeItem(storageKey, id),
+    clearItems: () => changeCart(storageKey, () => []),
+  }), [storageKey]);
   return {
+    storageKey,
     items,
     count: items.reduce((sum, item) => sum + item.quantity, 0),
     ready: snapshot !== null,
-    addItem,
-    setQuantity,
-    removeItem,
-    clearItems,
+    sessionError,
+    retrySession,
+    ...actions,
   };
 }

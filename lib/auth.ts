@@ -61,10 +61,15 @@ export function checkOrigin(request: Request) {
   }
 }
 
-export async function requireAdmin(request?: Request) {
+export async function requireUser(request?: Request) {
   if (request && !["GET", "HEAD"].includes(request.method)) checkOrigin(request);
   const user = await getCurrentUser();
   if (!user) throw new AuthError("Veuillez vous connecter.", 401);
+  return user;
+}
+
+export async function requireAdmin(request?: Request) {
+  const user = await requireUser(request);
   if (user.role !== "ADMIN") throw new AuthError("Accès réservé aux administrateurs.", 403);
   return user;
 }

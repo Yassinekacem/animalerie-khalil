@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { fallbackImage } from "@/lib/catalogue";
 import { getUnitPriceMillimes, MAX_CART_QUANTITY, useCart, type CartItem } from "@/lib/cart";
+import { useAuth } from "@/components/AuthProvider";
 
 type Coordinates = { customerName: string; customerPhone: string; customerEmail: string; deliveryAddress: string; note: string };
 type Confirmation = { id: number; reference: string; subtotal: string; deliveryFee: string; total: string };
@@ -73,9 +74,21 @@ function QuantityControl({ item, onChange }: { item: CartItem; onChange: (value:
 }
 
 export default function CartPage() {
-  const { items, count, ready, setQuantity, removeItem, clearItems } = useCart();
+  const cart = useCart();
+  // Reset checkout drafts and confirmations when the cart owner changes, even in a preserved route.
+  return <CartContent key={cart.storageKey ?? "pending"} cart={cart} />;
+}
+
+function CartContent({ cart }: { cart: ReturnType<typeof useCart> }) {
+  const { items, count, ready, setQuantity, removeItem, clearItems, sessionError, retrySession } = cart;
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
-  const [form, setForm] = useState<Coordinates>(emptyForm);
+  const [form, setForm] = useState<Coordinates>(() => ({
+    ...emptyForm,
+    customerName: user?.name ?? "",
+    customerPhone: user?.phone ?? "",
+    customerEmail: user?.email ?? "",
+  }));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const sending = useRef(false);
@@ -107,6 +120,14 @@ export default function CartPage() {
 
   useEffect(() => { titleRef.current?.focus({ preventScroll: true }); }, [step, confirmation]);
 
+  // Cache Components preserves this page's state across navigations. A new cart starts a new checkout.
+  // Keep the confirmation if clearing the previous cart failed, to prevent a duplicate order.
+  if (ready && confirmation && !clearFailed && items.length > 0) {
+    setConfirmation(null);
+    setStep(1);
+    setError("");
+  }
+
   const updateForm = (field: keyof Coordinates, value: string) => setForm(current => ({ ...current, [field]: value }));
   const mutateCart = (success: boolean) => {
     setError(success ? "" : "Impossible d’enregistrer le panier dans ce navigateur. Vérifiez que le stockage local est autorisé.");
@@ -136,8 +157,9 @@ export default function CartPage() {
       const data: unknown = await response.json();
       if (!response.ok) throw new Error(apiError(data, "Impossible d’enregistrer la commande."));
       if (response.status !== 201 || !isConfirmation(data)) throw new Error("La confirmation du serveur est incorrecte. Le panier a été conservé.");
+      const cleared = clearItems();
+      setClearFailed(!cleared);
       setConfirmation(data);
-      setClearFailed(!clearItems());
     } catch (reason) {
       setError(reason instanceof TypeError ? "Impossible de contacter le serveur. Votre panier et vos coordonnées sont conservés." :
         reason instanceof SyntaxError ? "La réponse du serveur est incorrecte. Votre panier et vos coordonnées sont conservés." :
@@ -187,7 +209,12 @@ export default function CartPage() {
               {ready && <p aria-live="polite" className="text-sm text-gray-500">{count} article{count > 1 ? "s" : ""}</p>}
             </div>
             {error && <p role="alert" className="mb-5 whitespace-pre-line rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-            {!ready ? <div role="status" className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500">Chargement du panier…</div> : items.length === 0 && !submitting ? (
+            {!ready ? sessionError ? (
+              <div role="alert" className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+                <p>{sessionError}</p>
+                <button type="button" onClick={() => { void retrySession(); }} className={`mt-2 rounded font-bold underline ${focus}`}>Réessayer</button>
+              </div>
+            ) : <div role="status" className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500">Chargement du panier…</div> : items.length === 0 && !submitting ? (
               <section className="rounded-2xl border border-gray-100 bg-white px-5 py-16 text-center">
                 <ShoppingCart size={44} aria-hidden="true" className="mx-auto mb-4 text-gray-300" />
                 <h2 className="text-xl font-extrabold">Votre panier est vide</h2>

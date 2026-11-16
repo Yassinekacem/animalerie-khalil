@@ -3,7 +3,8 @@ import { OrderStatus, Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { readDeliveryFee } from "@/lib/order-delivery";
 import { z } from "zod";
-import { AuthError, authError, requireAdmin } from "@/lib/auth";
+import { AuthError, authError, checkOrigin, getCurrentUser, requireUser } from "@/lib/auth";
+import { connection } from "next/server";
 
 const maxQuantity = 9999;
 const maxAmount = new Prisma.Decimal("999999999999999.999");
@@ -29,6 +30,7 @@ const createSchema = z.strictObject({
 });
 
 const querySchema = z.object({
+  scope: z.literal("mine").optional(),
   q: z.string().trim().max(200).optional(),
   status: z.enum(OrderStatus).optional(),
   page: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(2147483647)).default(1),
@@ -36,7 +38,7 @@ const querySchema = z.object({
 });
 
 function json(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+  return Response.json(body, { status, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
 }
 
 function handleError(error: unknown) {
@@ -45,7 +47,7 @@ function handleError(error: unknown) {
   if (error instanceof SyntaxError) return json({ error: "Corps JSON incorrect." }, 400);
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2003" || error.code === "P2014" || error.code === "P2025") {
-      return json({ error: "Un produit n’est plus disponible. Rechargez le panier avant de réessayer." }, 409);
+      return json({ error: "Un produit ou le compte client n’est plus disponible. Rechargez la page avant de réessayer." }, 409);
     }
     if (error.code === "P2002") return json({ error: "Une référence identique existe déjà. Veuillez réessayer." }, 409);
     if (error.code === "P2021" || error.code === "P2022") {
@@ -56,16 +58,18 @@ function handleError(error: unknown) {
   return json({ error: "Erreur interne du serveur." }, 500);
 }
 
-// Administrative reads require an active administrator session.
+// The default remains administrative; scope=mine always restricts reads to the session owner.
 export async function GET(request: Request) {
+  await connection();
   try {
-    await requireAdmin(request);
+    const user = await requireUser(request);
     const params = new URL(request.url).searchParams;
-    for (const key of ["q", "status", "page", "pageSize"]) {
+    for (const key of ["scope", "q", "status", "page", "pageSize"]) {
       if (params.getAll(key).length > 1) return json({ error: `Paramètre répété : ${key}` }, 400);
     }
     const query = querySchema.parse(Object.fromEntries([...params].filter(([, value]) => value.trim() !== "")));
-    const where: Prisma.OrderWhereInput = {};
+    if (query.scope !== "mine" && user.role !== "ADMIN") throw new AuthError("Accès réservé aux administrateurs.", 403);
+    const where: Prisma.OrderWhereInput = query.scope === "mine" ? { userId: user.id } : {};
     if (query.status) where.status = query.status;
     if (query.q) {
       // Treat LIKE wildcards as literal characters in the search text.
@@ -93,8 +97,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    checkOrigin(request);
     // Strict validation rejects browser-supplied prices, status, totals and userId.
     const data = createSchema.parse(await request.json());
+    const user = await getCurrentUser();
     const fee = readDeliveryFee();
     if (!fee.success) {
       return json({
@@ -126,7 +132,7 @@ export async function POST(request: Request) {
     const order = await prisma.order.create({
       data: {
         reference: `AK-${randomUUID().toUpperCase()}`,
-        userId: null,
+        userId: user?.id ?? null,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         deliveryAddress: data.deliveryAddress,

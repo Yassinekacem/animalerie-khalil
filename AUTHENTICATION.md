@@ -32,9 +32,12 @@ La commande locale promeut uniquement un compte actif existant et conserve son m
 ## Accès
 
 - Catalogue et détails produit : publics.
-- Création d’une commande et consultation des frais : publiques, le parcours invité conserve `userId: null`.
+- Création d’une commande et consultation des frais : publiques. Le serveur associe le compte de la session ; le parcours invité conserve `userId: null`.
+- `/compte/profil` et `/compte/commandes` : session active requise, avec protection serveur et contrôle de session côté client.
+- `GET/PUT /api/users/me` : profil du compte de la session uniquement. Seuls le nom, l’e-mail, le téléphone et le sexe sont modifiables ; `updatedAt` protège contre les modifications concurrentes.
+- `GET /api/orders?scope=mine` et `GET /api/orders/[id]?scope=mine` : commandes du compte de la session uniquement, y compris pour un administrateur. Les commandes visiteurs ne sont pas rattachées par e-mail.
 - Création, modification et suppression de produits : ADMIN actif.
-- Liste et détails de commandes, changement de statut : ADMIN actif.
+- Liste générale des commandes et changement de statut : ADMIN actif. Un client peut consulter le détail de sa propre commande ; un administrateur peut consulter toutes les commandes hors du mode `scope=mine`.
 - Toutes les pages `/admin` : ADMIN actif, avec vérification serveur et API indépendante.
 
 Les erreurs API utilisent `error` et éventuellement les `issues` Zod. Les lectures de session ne sont pas mises en cache. Les mutations refusent les origines étrangères ; Postman peut envoyer du JSON sans en-tête Origin.
@@ -43,4 +46,4 @@ Les erreurs API utilisent `error` et éventuellement les `issues` Zod. Les lectu
 
 La limitation à 10 tentatives par adresse/opération et par tranche de 15 minutes est en mémoire, par processus. Pour plusieurs instances, la compléter par une limitation partagée au niveau de l’hébergement.
 La déconnexion efface le cookie du navigateur ; une copie préalablement volée d’un cookie reste valable jusqu’à expiration ou invalidation du compte/mot de passe/secret serveur.
-La réinitialisation du mot de passe, les emails de vérification et l’historique client ne font pas partie de cette étape.
+La réinitialisation du mot de passe et les emails de vérification ne sont pas encore implémentés.

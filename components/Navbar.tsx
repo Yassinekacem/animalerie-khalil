@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,6 +16,9 @@ import {
   LogOut,
   LogIn,
   UserPlus,
+  ChevronDown,
+  ShoppingBag,
+  Settings,
 } from "lucide-react";
 
 const navLinks = [
@@ -29,15 +32,48 @@ const navLinks = [
 
 ];
 
+function NavigationReset({ onNavigate }: { onNavigate: () => void }) {
+  const pathname = usePathname();
+  useEffect(() => { onNavigate(); }, [pathname, onNavigate]);
+  return null;
+}
+
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { count } = useCart();
 
   const { user, loading, error: sessionError, refresh, logout } = useAuth();
   const router = useRouter();
+  const accountMenuId = useId();
+  const accountMenu = useRef<HTMLDivElement>(null);
+  const accountTrigger = useRef<HTMLButtonElement>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountContext = user?.id ?? "guest";
+  const [previousContext, setPreviousContext] = useState(accountContext);
+  if (previousContext !== accountContext) {
+    setPreviousContext(accountContext);
+    setAccountOpen(false);
+    setIsMenuOpen(false);
+  }
   const [logoutError, setLogoutError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const leaving = useRef(false);
+  const closeMenus = useCallback(() => { setAccountOpen(false); setIsMenuOpen(false); }, []);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const outside = (event: PointerEvent) => { if (!accountMenu.current?.contains(event.target as Node)) setAccountOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setAccountOpen(false); accountTrigger.current?.focus(); } };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [accountOpen]);
+
+  const accountLinks = [
+    { href: "/compte/profil", label: "Mon profil", Icon: UserRound },
+    { href: "/compte/commandes", label: "Mes commandes", Icon: ShoppingBag },
+    ...(user?.role === "ADMIN" ? [{ href: "/admin", label: "Administration", Icon: Settings }] : []),
+  ];
 
   async function handleLogout() {
     if (leaving.current) return;
@@ -46,7 +82,9 @@ export default function Navbar() {
     try {
       await logout();
       setIsMenuOpen(false);
-      router.replace("/");
+      setAccountOpen(false);
+      const path = window.location.pathname;
+      router.replace(path.startsWith("/compte/") ? `/connexion?next=${encodeURIComponent(path)}` : "/");
       router.refresh();
     } catch (error) {
       setLogoutError(error instanceof TypeError ? "Impossible de contacter le serveur." : error instanceof Error ? error.message : "La déconnexion a échoué.");
@@ -55,6 +93,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
+      <Suspense fallback={null}><NavigationReset onNavigate={closeMenus} /></Suspense>
       {/* Announcement bar */}
       <div className="bg-[#65D900] px-3 py-2 text-center text-xs font-semibold text-black sm:text-sm">
         <PawPrint className="mr-2 inline-block h-4 w-4" />
@@ -95,12 +134,14 @@ export default function Navbar() {
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
 
             {loading ? <span role="status" className="hidden text-xs text-gray-300 sm:block">Vérification de la session…</span> : user ? (
-              <div className="hidden items-center gap-2 text-white sm:flex">
-                <UserRound size={19} aria-hidden="true" />
-                <span className="max-w-28 truncate text-sm" title={user.name}>{user.name}</span>
-                {user.role === "ADMIN" && <Link href="/admin" className="rounded-full px-3 py-2 text-sm font-semibold text-[#65D900] hover:bg-white/10 focus-visible:outline-2">Administration</Link>}
-                <button type="button" onClick={handleLogout} disabled={loggingOut} aria-label="Se déconnecter" title="Se déconnecter"
-                  className="rounded-full p-2 text-white hover:bg-white/10 disabled:opacity-50 focus-visible:outline-2"><LogOut size={20} aria-hidden="true" /></button>
+              <div ref={accountMenu} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setAccountOpen(false); }} className="relative hidden text-white sm:block">
+                <button ref={accountTrigger} type="button" onClick={() => setAccountOpen(value => !value)} aria-expanded={accountOpen} aria-controls={accountMenuId} className="flex items-center gap-2 rounded-full px-3 py-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#65D900]">
+                  <UserRound size={19} aria-hidden="true" /><span className="max-w-28 truncate text-sm" title={user.name}>{user.name}</span><ChevronDown size={15} aria-hidden="true" className={accountOpen ? "rotate-180" : ""} />
+                </button>
+                {accountOpen && <div id={accountMenuId} className="absolute right-0 top-full z-50 mt-3 w-56 rounded-xl border border-gray-100 bg-white p-2 text-gray-900 shadow-lg">
+                  <nav aria-label="Mon compte">{accountLinks.map(({ href, label, Icon }) => <Link key={href} href={href} onClick={() => setAccountOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold hover:bg-[#65D900]/10 focus-visible:outline-2 focus-visible:outline-[#65D900]"><Icon size={18} aria-hidden="true" />{label}</Link>)}</nav>
+                  <button type="button" onClick={handleLogout} disabled={loggingOut} className="mt-1 flex w-full items-center gap-3 rounded-lg border-t border-gray-100 px-3 py-3 text-sm font-semibold hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-[#65D900] disabled:opacity-50"><LogOut size={18} aria-hidden="true" />{loggingOut ? "Déconnexion…" : "Déconnexion"}</button>
+                </div>}
               </div>
             ) : (
               <>
@@ -128,7 +169,7 @@ export default function Navbar() {
             {/* Mobile Menu Button */}
             <button
               type="button"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              onClick={() => { setIsMenuOpen(!isMenuOpen); setAccountOpen(false); }}
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={isMenuOpen}
               className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black xl:hidden"
@@ -160,9 +201,9 @@ export default function Navbar() {
             {loading ? <p role="status" className="mt-5 text-sm text-gray-300">Vérification de la session…</p> : user ? (
               <div className="mt-5 flex flex-col gap-3">
                 <p className="flex items-center gap-3 break-words rounded-lg bg-white/5 p-3 font-medium text-white"><UserRound size={20} className="shrink-0" aria-hidden="true" />{user.name}</p>
-                {user.role === "ADMIN" && <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="rounded-lg bg-white/5 p-3 font-semibold text-[#65D900]">Administration</Link>}
+                {accountLinks.map(({ href, label, Icon }) => <Link key={href} href={href} onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 rounded-lg bg-white/5 p-3 font-semibold text-white hover:text-[#65D900] focus-visible:outline-2 focus-visible:outline-[#65D900]"><Icon size={20} aria-hidden="true" />{label}</Link>)}
                 <button type="button" onClick={handleLogout} disabled={loggingOut} className="flex items-center gap-3 rounded-lg bg-white/5 p-3 text-left font-semibold text-white disabled:opacity-50 focus-visible:outline-2">
-                  <LogOut size={20} aria-hidden="true" />{loggingOut ? "Déconnexion…" : "Se déconnecter"}
+                  <LogOut size={20} aria-hidden="true" />{loggingOut ? "Déconnexion…" : "Déconnexion"}
                 </button>
               </div>
             ) : (

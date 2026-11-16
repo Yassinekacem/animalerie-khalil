@@ -10,7 +10,8 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { Eye, ImageOff, Loader2, Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Eye, ImageOff, Loader2, Package, Pencil, Plus, Search, Trash2, X } from "lucide-react"; 
+import CloudinaryUpload from "@/components/CloudinaryUpload";
 
 /* ============================================================
    Types
@@ -1255,36 +1256,13 @@ export default function ProductsPage() {
                         className={inputClass}
                       />
                     </label>
-                    <label className="block text-sm font-medium">
-                      URL de l’image (facultative)
-                      <input
-                        type="text"
-                        inputMode="url"
-                        pattern="https?://.*|/.*"
-                        title="Une URL HTTP(S) ou un chemin local commençant par /"
-                        placeholder="https://exemple.com/produit.jpg"
-                        value={draft.image}
-                        onChange={event =>
-                          setDraft(prev => (prev ? { ...prev, image: event.target.value } : prev))
-                        }
-                        className={inputClass}
-                      />
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <ProductImage src={draft.image} name={draft.name || "Aperçu du produit"} />
-                      <span className="text-xs text-gray-500">
-                        Aperçu · Image de remplacement si absente ou indisponible.
-                      </span>
-                      {draft.image && (
-                        <button
-                          type="button"
-                          onClick={() => setDraft(prev => (prev ? { ...prev, image: "" } : prev))}
-                          className="text-xs underline"
-                        >
-                          Retirer
-                        </button>
-                      )}
-                    </div>
+                    <CloudinaryUpload
+  value={draft.image}
+  onChange={(url) =>
+    setDraft(prev => (prev ? { ...prev, image: url } : prev))
+  }
+  label="Photo du produit"
+/>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <label className="text-sm font-medium">
                         Animal cible *
