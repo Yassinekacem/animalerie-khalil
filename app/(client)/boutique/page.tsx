@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import SidebarFilter from "@/components/SidebarFilter";
@@ -133,6 +135,7 @@ function Catalogue() {
 
   const [showFilters, setShowFilters] = useState(false);
   const { count: cartCount, ready: cartReady, addItem } = useCart();
+  const toast = useToast();
   const [cartMessage, setCartMessage] = useState({ text: "", error: false });
   const [retry, setRetry] = useState(0);
 
@@ -389,11 +392,12 @@ function Catalogue() {
 
   const addToCart = useCallback((product: Product) => {
     const added = addItem(product);
+    if (added) toast(`${product.name} ajouté au panier.`);
     setCartMessage({
-      text: added ? `${product.name} ajouté au panier.` : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
+      text: added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
       error: !added,
     });
-  }, [addItem]);
+  }, [addItem, toast]);
 
   /* ---- Skeleton sidebar : uniquement si jamais chargé ---- */
 

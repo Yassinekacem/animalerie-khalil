@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
@@ -82,9 +84,11 @@ export default function InscriptionPageClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [sexe, setSexe] = useState<"HOMME" | "FEMME" | "">("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -119,6 +123,11 @@ export default function InscriptionPageClient() {
       return;
     }
 
+    if (sexe !== "HOMME" && sexe !== "FEMME") {
+      setError("Veuillez sélectionner Homme ou Femme.");
+      return;
+    }
+
     if (formData.password.length < 8) {
       setError("Le mot de passe doit contenir au moins 8 caractères.");
       return;
@@ -150,9 +159,10 @@ export default function InscriptionPageClient() {
       await register({
         name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
         email: formData.email.trim(), phone: formData.phone.trim() || null,
-        password: formData.password, image, acceptTerms: true,
+        password: formData.password, sexe, image, acceptTerms: true,
       });
       setSuccess(true);
+      toast("Votre compte a été créé. Connectez-vous pour accéder à votre compte.");
       setPhoto(null);
       setFormData(current => ({ ...current, password: "", confirmPassword: "" }));
     } catch (reason) {
@@ -248,7 +258,7 @@ export default function InscriptionPageClient() {
               </div>
 
               {success ? <div role="status" className="rounded-xl border border-[#65D900]/40 bg-[#65D900]/10 p-5 text-sm text-gray-800">
-                <p className="font-bold">Votre compte a été créé.</p>
+
                 <p className="mt-2">Connectez-vous pour accéder à votre compte.</p>
                 <button type="button" onClick={() => { router.replace("/connexion"); router.refresh(); }} className="mt-4 rounded-xl bg-[#65D900] px-5 py-3 font-bold text-black focus-visible:outline-2 focus-visible:outline-offset-2">Se connecter</button>
               </div> : <form onSubmit={handleSubmit} aria-busy={isLoading}>
@@ -328,6 +338,20 @@ export default function InscriptionPageClient() {
                     </div>
                   </div>
                 </div>
+
+                <fieldset>
+                  <legend className="mb-2 text-sm font-bold text-gray-800">Sexe <span className="font-normal text-gray-500">(obligatoire)</span></legend>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([{ value: "HOMME", label: "Homme" }, { value: "FEMME", label: "Femme" }] as const).map(option => (
+                      <label key={option.value}
+                        className={`flex h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 text-sm transition focus-within:ring-2 focus-within:ring-[#65D900]/15 ${sexe === option.value ? "border-[#65D900] bg-[#65D900]/10 font-semibold text-gray-900" : "border-gray-200 bg-[#F8F9F7] text-gray-600 hover:border-[#65D900]"}`}>
+                        <input type="radio" name="sexe" value={option.value} checked={sexe === option.value}
+                          onChange={() => setSexe(option.value)} required className="h-4 w-4 shrink-0 accent-[#65D900]" />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
 
                 {/* Email */}
                 <div>

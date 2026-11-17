@@ -77,6 +77,7 @@ const querySchema = z.object({
   q: z.string().trim().optional(),
   targetAnimal: animalSchema.optional(),
   category: z.string().trim().min(1).optional(),
+  excludeId: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(2147483647)).optional(),
   promotion: z.enum(["true", "false"]).optional(),
   brand: z.string().trim().min(1).optional(),
   minPrice: moneySchema.optional(),
@@ -99,7 +100,7 @@ const querySchema = z.object({
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
-    for (const key of ["q", "targetAnimal", "category", "promotion", "brand", "minPrice", "maxPrice", "sort", "brandsOnly", "page", "pageSize"]) {
+    for (const key of ["q", "targetAnimal", "category", "excludeId", "promotion", "brand", "minPrice", "maxPrice", "sort", "brandsOnly", "page", "pageSize"]) {
       if (params.getAll(key).length > 1) {
         return Response.json({ error: "Paramètre répété : " + key }, { status: 400 });
       }
@@ -117,6 +118,7 @@ export async function GET(request: Request) {
     if (query.q) conditions.push(Prisma.sql`strpos(lower("name"), lower(${query.q}::text)) > 0`);
     if (query.targetAnimal) conditions.push(Prisma.sql`"targetAnimal"::text = ${query.targetAnimal}`);
     if (query.category) conditions.push(Prisma.sql`"category" = ${query.category}`);
+    if (query.excludeId !== undefined) conditions.push(Prisma.sql`"Product"."id" <> ${query.excludeId}`);
     if (query.brand) conditions.push(Prisma.sql`"brand" = ${query.brand}`);
     if (query.promotion === "true") conditions.push(Prisma.sql`"promoPrice" IS NOT NULL`);
     if (query.promotion === "false") conditions.push(Prisma.sql`"promoPrice" IS NULL`);

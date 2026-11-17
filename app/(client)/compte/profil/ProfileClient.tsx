@@ -1,7 +1,9 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Camera, CheckCircle2, Loader2, Mail, Phone, Save, UserRound } from "lucide-react";
+import { Camera, Loader2, Mail, Phone, Save, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { accountButton, accountInput, accountRequest } from "@/components/AccountArea";
 
@@ -57,7 +59,7 @@ function ProfileForm({ profile, onReload }: { profile: Profile; onReload: () => 
   const [savedProfile, setSavedProfile] = useState(profile);
   const [operation, setOperation] = useState<"" | "profile" | "upload" | "photo">("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const setSuccess = useToast();
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const sending = useRef(false);
@@ -228,7 +230,7 @@ function ProfileForm({ profile, onReload }: { profile: Profile; onReload: () => 
             <p className="whitespace-pre-line">{error}</p>
             <button type="button" onClick={onReload} disabled={busy} className="mt-2 rounded font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Recharger les dernières informations</button>
           </div>}
-          {success && <p role="status" className="mt-6 flex items-start gap-2 rounded-xl border border-[#65D900]/30 bg-[#65D900]/5 px-4 py-3 text-sm text-[#387900]"><CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{success}</p>}
+
 
           <div className="mt-7 flex flex-col gap-4 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs leading-5 text-gray-500">{hasChanges ? "Des modifications attendent d’être enregistrées." : "Vos informations sont à jour."}</p>

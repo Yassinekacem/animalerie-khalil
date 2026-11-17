@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Heart } from "lucide-react";
@@ -11,14 +13,16 @@ import { useCart } from "@/lib/cart";
 export default function FavoritesClient() {
   const { products, count, loading, error, retry } = useWishlist();
   const { addItem, ready: cartReady } = useCart();
+  const toast = useToast();
   const [cartMessage, setCartMessage] = useState({ text: "", error: false });
   const addToCart = useCallback((product: Product) => {
     const added = addItem(product);
+    if (added) toast(`${product.name} ajouté au panier.`);
     setCartMessage({
-      text: added ? `${product.name} ajouté au panier.` : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
+      text: added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
       error: !added,
     });
-  }, [addItem]);
+  }, [addItem, toast]);
 
   return <section aria-labelledby="favorites-title">
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">

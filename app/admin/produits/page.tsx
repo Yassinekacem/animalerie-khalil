@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 import {
   memo,
   useCallback,
@@ -544,7 +546,7 @@ export default function ProductsPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const setNotice = useToast();
   const [saving, setSaving] = useState(false);
 
   const mutating = useRef(false);
@@ -839,9 +841,7 @@ export default function ProductsPage() {
         </div>
       </header>
 
-      <p role="status" className="text-sm text-[#306900]">
-        {notice}
-      </p>
+
 
       <section
         aria-label="Recherche et filtres"

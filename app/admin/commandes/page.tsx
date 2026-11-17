@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 import {
   memo,
   useCallback,
@@ -385,7 +387,7 @@ export default function OrdersPage() {
   const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set());
 
   // Notifications
-  const [notice, setNotice] = useState("");
+  const setNotice = useToast();
   const [error, setError] = useState("");
 
   const detailController = useRef<AbortController | null>(null);
@@ -678,9 +680,7 @@ export default function OrdersPage() {
         </div>
       </header>
 
-      <p role="status" className="text-sm text-[#306900]">
-        {notice}
-      </p>
+
 
       {error && (
         <p role="alert" className="whitespace-pre-line text-sm text-red-700">

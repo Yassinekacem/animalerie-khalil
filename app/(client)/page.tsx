@@ -155,9 +155,9 @@ const underlineVariants: Variants = {
 
 // ================= HOME PAGE =================
 
-function PawDecorations({ marks, dark = false }: { marks: string[]; dark?: boolean }) {
+function PawDecorations({ marks, dark = false, colorClassName }: { marks: string[]; dark?: boolean; colorClassName?: string }) {
   return (
-    <div aria-hidden="true" className={`pointer-events-none absolute inset-0 select-none overflow-hidden ${dark ? "text-[#65D900]/[0.055]" : "text-[#416533]/[0.045]"}`}>
+    <div aria-hidden="true" className={`pointer-events-none absolute inset-0 select-none overflow-hidden ${colorClassName ?? (dark ? "text-[#65D900]/[0.10]" : "text-[#416533]/[0.085]")}`}>
       {marks.map((position, index) => (
         <PawPrint key={index} focusable="false" fill="currentColor" strokeWidth={0} className={`absolute ${position}`} />
       ))}
@@ -309,9 +309,14 @@ export default function HomePage() {
 
         {/* Background decoration */}
         <div className="absolute -right-32 -top-32 h-[500px] w-[500px] rounded-full bg-[#65D900]/10 blur-[100px]" />
-        <PawDecorations dark marks={[
+        <PawDecorations colorClassName="text-[#65D900]/[0.12]" marks={[
+          "left-3 top-5 h-10 w-10 -rotate-[24deg] sm:left-[3%] sm:h-14 sm:w-14",
+          "left-[42%] top-4 h-8 w-8 rotate-[18deg] sm:left-[40%] sm:top-8 sm:h-12 sm:w-12",
           "right-5 top-7 h-16 w-16 rotate-[22deg] sm:right-[8%] sm:h-24 sm:w-24",
-          "bottom-5 left-4 hidden h-20 w-20 -rotate-[18deg] lg:block",
+          "-right-4 top-[42%] h-20 w-20 -rotate-[25deg] sm:right-5 sm:h-28 sm:w-28",
+          "bottom-5 left-4 h-14 w-14 -rotate-[18deg] sm:left-[5%] sm:h-20 sm:w-20",
+          "bottom-6 left-[46%] hidden h-12 w-12 rotate-[30deg] lg:block",
+          "bottom-3 right-[8%] h-10 w-10 rotate-[18deg] sm:bottom-6 sm:h-16 sm:w-16",
         ]} />
 
         <div className="relative z-10 mx-auto grid min-h-[570px] max-w-7xl items-center gap-8 px-5 py-14 sm:min-h-[650px] sm:py-20 lg:grid-cols-2 lg:px-8">
@@ -464,6 +469,11 @@ export default function HomePage() {
 
             {/* Image boutique légèrement inclinée, effet carte postale */}
             <div className="relative -rotate-2 transition duration-500 hover:rotate-0">
+              <Link
+                href="/boutique"
+                aria-label="Accéder à la boutique"
+                className="block rounded-[28px] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#65D900] focus-visible:ring-offset-4"
+              >
               <div className="overflow-hidden rounded-[28px] border-[6px] border-white bg-white shadow-2xl shadow-black/50">
                 <Image
                   src="/boutique.png"
@@ -475,6 +485,7 @@ export default function HomePage() {
                   className="block h-auto w-full rounded-[22px]"
                 />
               </div>
+              </Link>
 
               {/* Petit ruban / étiquette "Notre boutique" en haut à droite */}
               <div className="absolute -right-3 -top-3 rotate-6 rounded-full bg-[#65D900] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wider text-black shadow-lg">
@@ -491,9 +502,10 @@ export default function HomePage() {
 
       <section className="relative overflow-hidden bg-[#F8F9F7] px-5 py-16 sm:py-20 lg:px-8">
         <PawDecorations marks={[
-          "right-[14%] top-3 hidden h-14 w-14 rotate-[28deg] sm:block",
+          "right-[14%] top-3 h-10 w-10 rotate-[28deg] sm:h-14 sm:w-14",
           "-right-3 bottom-2 h-20 w-20 -rotate-[16deg] sm:right-4 sm:h-28 sm:w-28",
-          "bottom-4 left-[7%] h-10 w-10 rotate-[18deg]",
+          "bottom-3 left-[8%] h-12 w-12 rotate-[20deg] sm:h-16 sm:w-16",
+          "left-[45%] top-6 h-8 w-8 -rotate-[28deg] sm:h-10 sm:w-10",
         ]} />
 
         <div className="relative z-10 mx-auto max-w-7xl">
@@ -563,8 +575,9 @@ export default function HomePage() {
       <section className="relative overflow-hidden bg-white px-5 py-16 sm:py-20 lg:px-8">
         <PawDecorations marks={[
           "right-3 top-4 h-14 w-14 rotate-[18deg] sm:right-[4%] sm:h-20 sm:w-20",
-          "bottom-3 left-[3%] hidden h-14 w-14 -rotate-[26deg] sm:block",
-          "bottom-4 right-[10%] h-10 w-10 rotate-[24deg]",
+          "bottom-3 left-[3%] h-10 w-10 -rotate-[26deg] sm:h-14 sm:w-14",
+          "bottom-4 right-[12%] h-12 w-12 rotate-[26deg] sm:h-16 sm:w-16",
+          "left-[42%] top-5 h-9 w-9 -rotate-[18deg] sm:h-12 sm:w-12",
         ]} />
 
         <div className="relative z-10 mx-auto max-w-7xl">
@@ -616,8 +629,10 @@ export default function HomePage() {
 
           <div className="absolute -right-20 -top-24 h-80 w-80 rounded-full bg-[#65D900]/20 blur-[80px]" />
           <PawDecorations dark marks={[
-            "left-[44%] top-5 hidden h-16 w-16 rotate-[32deg] lg:block",
-            "bottom-4 left-[6%] hidden h-12 w-12 -rotate-[20deg] sm:block",
+            "right-4 top-4 h-10 w-10 rotate-[32deg] lg:left-[44%] lg:right-auto lg:h-16 lg:w-16",
+            "bottom-4 left-[6%] h-10 w-10 -rotate-[20deg] sm:h-12 sm:w-12",
+            "bottom-3 right-[5%] h-14 w-14 rotate-[24deg] sm:h-20 sm:w-20",
+            "left-4 top-5 h-8 w-8 -rotate-[28deg] sm:h-11 sm:w-11",
           ]} />
 
           <div className="relative z-10 grid items-center gap-8 px-7 py-12 sm:px-12 sm:py-16 lg:grid-cols-2">
@@ -667,7 +682,8 @@ export default function HomePage() {
         <PawDecorations marks={[
           "left-4 top-6 h-12 w-12 -rotate-[24deg] sm:left-[5%] sm:h-16 sm:w-16",
           "bottom-1 right-[5%] h-20 w-20 rotate-[20deg] sm:h-24 sm:w-24",
-          "right-[7%] top-8 hidden h-12 w-12 -rotate-[14deg] md:block",
+          "right-[10%] top-6 h-10 w-10 -rotate-[18deg] sm:h-14 sm:w-14",
+          "bottom-3 left-[20%] h-9 w-9 rotate-[28deg] sm:h-12 sm:w-12",
         ]} />
 
         <div className="relative z-10 mx-auto max-w-7xl">

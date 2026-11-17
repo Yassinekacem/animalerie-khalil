@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Eye, Pencil, Search, ShieldCheck, UserCheck, UserRound, UserX, Users, X } from "lucide-react";
@@ -82,7 +84,7 @@ export default function UsersPage() {
   const [original, setOriginal] = useState<User | null>(null);
   const [fromEdit, setFromEdit] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const setNotice = useToast();
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailFailed, setDetailFailed] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -176,7 +178,7 @@ export default function UsersPage() {
           <div><p className="text-2xl font-bold">{data?.total ?? "—"}</p><p className="text-xs text-gray-500">Utilisateurs correspondant aux filtres</p></div>
         </div>
       </header>
-      {notice && <p role="status" className="text-sm text-[#306900]">{notice}</p>}
+
 
       <section aria-label="Recherche et filtres" className="grid gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-[2fr_1fr_1fr]">
         <label className="text-sm font-medium">Rechercher un utilisateur

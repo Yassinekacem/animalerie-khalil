@@ -1,12 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useId, useRef, useState } from "react";
-import Image from "next/image";
+import { useToast } from "@/components/ToastProvider";
+
+import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import ProductImageZoom from "@/components/ProductImageZoom";
+import ProductCard, { type Product as CardProduct } from "@/components/ProductCard";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Check,
+  ChevronLeft,
   ChevronRight,
   MessageCircle,
   Minus,
@@ -227,7 +231,7 @@ function ProductContent({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState("1");
   const { count: cartCount, ready: cartReady, addItem } = useCart();
   const [cartError, setCartError] = useState("");
-  const [addedQuantity, setAddedQuantity] = useState(0);
+  const toast = useToast();
 
   const quantityNumber = Number(quantity);
   const validQuantity = /^\d+$/.test(quantity) && Number.isSafeInteger(quantityNumber) && quantityNumber > 0 && quantityNumber <= MAX_CART_QUANTITY;
@@ -250,26 +254,16 @@ function ProductContent({ product }: { product: Product }) {
       <div className="grid items-start gap-7 lg:grid-cols-2 lg:gap-12">
         {/* --- Colonne image + partage --- */}
         <div className="space-y-4">
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-gray-100 bg-white">
-            <Image
-              src={imageSource}
-              alt={
-                imageSource === fallbackImage
-                  ? "Image de remplacement — Animalerie Khalil"
-                  : product.name
-              }
-              fill
-              sizes="(max-width: 1023px) 100vw, 600px"
-              unoptimized={/^https?:\/\//i.test(imageSource)}
-              onError={() => setImageFailed(true)}
-              className="object-contain p-6 sm:p-10"
-            />
-            {hasPromo && (
-              <span className="absolute left-4 top-4 rounded-full bg-[#65D900] px-3 py-1.5 text-xs font-extrabold text-black">
-                −{discount} %
-              </span>
-            )}
-          </div>
+          <ProductImageZoom
+            src={imageSource}
+            alt={
+              imageSource === fallbackImage
+                ? "Image de remplacement — Animalerie Khalil"
+                : product.name
+            }
+            onError={() => setImageFailed(true)}
+            discount={hasPromo ? discount : undefined}
+          />
 
           {/* Partage social */}
           <ShareBlock productName={product.name} />
@@ -353,7 +347,7 @@ function ProductContent({ product }: { product: Product }) {
                 disabled={!validQuantity || quantityNumber <= 1}
                 onClick={() => {
                   setQuantity(String(quantityNumber - 1));
-                  setAddedQuantity(0);
+
                 }}
                 className="p-3.5 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#65D900] disabled:opacity-40"
               >
@@ -371,7 +365,7 @@ function ProductContent({ product }: { product: Product }) {
                 aria-describedby={!validQuantity ? "quantity-error" : undefined}
                 onChange={event => {
                   setQuantity(event.target.value);
-                  setAddedQuantity(0);
+
                 }}
                 onBlur={() => {
                   if (!validQuantity) setQuantity("1");
@@ -384,7 +378,7 @@ function ProductContent({ product }: { product: Product }) {
                 disabled={!validQuantity || quantityNumber >= MAX_CART_QUANTITY}
                 onClick={() => {
                   setQuantity(String(quantityNumber + 1));
-                  setAddedQuantity(0);
+
                 }}
                 className="p-3.5 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#65D900] disabled:opacity-40"
               >
@@ -396,7 +390,7 @@ function ProductContent({ product }: { product: Product }) {
               disabled={!cartReady || !validQuantity}
               onClick={() => {
                 const added = addItem(product, quantityNumber);
-                setAddedQuantity(added ? quantityNumber : 0);
+                if (added) toast(quantityNumber + " article(s) ajouté(s) au panier.");
                 setCartError(added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité totale ne dépasse pas 9 999.");
               }}
               className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-[#65D900] px-4 py-3.5 text-sm font-bold text-black transition hover:bg-[#55BD00] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#65D900] disabled:cursor-not-allowed disabled:opacity-50"
@@ -410,14 +404,7 @@ function ProductContent({ product }: { product: Product }) {
             </p>
           )}
           {cartError && <p role="alert" className="mt-3 text-sm text-red-700">{cartError}</p>}
-          <p role="status" className="mt-3 flex min-h-5 items-center gap-2 text-sm text-gray-600">
-            {addedQuantity > 0 && (
-              <>
-                <Check size={16} aria-hidden="true" className="shrink-0 text-[#438F00]" />
-                {addedQuantity} article(s) ajouté(s) au panier.
-              </>
-            )}
-          </p>
+
           {cartCount > 0 && (
             <Link
               href="/panier"
@@ -503,7 +490,108 @@ function ProductContent({ product }: { product: Product }) {
           Avis clients
           ============================================================ */}
       <ReviewsSection key={user?.id ?? "guest"} productId={product.id} productName={product.name} {...reviews} />
+
+      <SimilarProducts key={product.id} product={product} />
     </article>
+  );
+}
+
+/* ============================================================
+   Produits similaires
+   ============================================================ */
+
+function SimilarProducts({ product }: { product: Product }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [navigation, setNavigation] = useState({ previous: false, next: false });
+  const toast = useToast();
+  const [cartMessage, setCartMessage] = useState({ text: "", error: false });
+  const { addItem, ready: cartReady } = useCart();
+  const rail = useRef<HTMLUListElement>(null);
+  const titleId = useId();
+  const railId = useId();
+  const { id, targetAnimal, category } = product;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadSimilarProducts() {
+      try {
+        const query = new URLSearchParams({ targetAnimal, category, excludeId: String(id), pageSize: "10", sort: "newest" });
+        const response = await fetch(`/api/products?${query}`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("Produits similaires indisponibles.");
+        const data = await response.json();
+        if (!Array.isArray(data?.products) || !data.products.every(isProduct)) {
+          throw new Error("Réponse catalogue incorrecte.");
+        }
+        if (!controller.signal.aborted) {
+          setProducts(data.products.filter((item: Product) => item.id !== id && item.targetAnimal === targetAnimal && item.category === category).slice(0, 10));
+        }
+      } catch {
+        if (!controller.signal.aborted) setProducts([]);
+      }
+    }
+    void loadSimilarProducts();
+    return () => controller.abort();
+  }, [id, targetAnimal, category]);
+
+  useEffect(() => {
+    const element = rail.current;
+    if (!element) return;
+    function updateNavigation() {
+      if (!element) return;
+      const previous = element.scrollLeft > 2;
+      const next = element.scrollLeft + element.clientWidth < element.scrollWidth - 2;
+      setNavigation(current => current.previous === previous && current.next === next ? current : { previous, next });
+    }
+    updateNavigation();
+    element.addEventListener("scroll", updateNavigation, { passive: true });
+    const observer = new ResizeObserver(updateNavigation);
+    observer.observe(element);
+    return () => {
+      element.removeEventListener("scroll", updateNavigation);
+      observer.disconnect();
+    };
+  }, [products.length]);
+
+  function scroll(direction: number) {
+    const element = rail.current;
+    if (!element) return;
+    element.scrollBy({ left: direction * element.clientWidth, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  }
+
+  const addToCart = useCallback((item: CardProduct) => {
+    const added = addItem(item);
+    if (added) toast(`${item.name} ajouté au panier.`);
+    setCartMessage({
+      text: added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
+      error: !added,
+    });
+  }, [addItem, toast]);
+
+  if (products.length === 0) return null;
+
+  const arrowClass = "flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 transition hover:border-[#65D900] hover:bg-[#65D900] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#65D900] disabled:cursor-default disabled:opacity-30 disabled:hover:border-gray-200 disabled:hover:bg-white motion-reduce:transition-none";
+
+  return (
+    <section aria-labelledby={titleId} className="min-w-0 border-t border-gray-200 pt-8 sm:pt-10">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-widest text-[#55B900]">À découvrir aussi</p>
+          <h2 id={titleId} className="text-2xl font-extrabold tracking-tight sm:text-3xl">Produits similaires</h2>
+          <p className="mt-2 text-sm text-gray-500">D’autres produits de la même catégorie pour votre compagnon.</p>
+        </div>
+        <div role="group" aria-label="Navigation des produits similaires" className="hidden shrink-0 gap-2 lg:flex">
+          <button type="button" aria-label="Produits précédents" aria-controls={railId} disabled={!navigation.previous} onClick={() => scroll(-1)} className={arrowClass}><ChevronLeft size={21} aria-hidden="true" /></button>
+          <button type="button" aria-label="Produits suivants" aria-controls={railId} disabled={!navigation.next} onClick={() => scroll(1)} className={arrowClass}><ChevronRight size={21} aria-hidden="true" /></button>
+        </div>
+      </div>
+      {cartMessage.text && <p role={cartMessage.error ? "alert" : "status"} className={`mb-4 rounded-xl border bg-white px-4 py-3 text-sm ${cartMessage.error ? "border-red-200 text-red-700" : "border-[#65D900]/40 text-gray-800"}`}>{cartMessage.text}</p>}
+      <ul ref={rail} id={railId} tabIndex={0} aria-label="Liste des produits similaires"
+        className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain px-1 py-4 [scrollbar-width:none] focus-visible:rounded-2xl focus-visible:outline-2 focus-visible:outline-[#65D900] [&::-webkit-scrollbar]:hidden">
+        {products.map(item => <li key={item.id} className="w-[72%] shrink-0 snap-start sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2rem)/3)] xl:w-[calc((100%-3rem)/4)]">
+          <ProductCard product={item} onAddToCart={addToCart} cartReady={cartReady} />
+        </li>)}
+      </ul>
+    </section>
   );
 }
 
@@ -766,7 +854,7 @@ function ReviewsSection({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState<"" | "save" | "delete">("");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const setMessage = useToast();
   const sending = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const ratingLabelId = useId();
@@ -853,7 +941,7 @@ function ReviewsSection({
         <p className="whitespace-pre-line">{error}</p>
         <button type="button" disabled={Boolean(busy)} onClick={() => { setError(""); reload(); }} className="mt-2 rounded font-semibold underline focus-visible:outline-2 focus-visible:outline-offset-2">Actualiser les avis</button>
       </div>}
-      {message && <p role="status" className="flex items-center gap-2 text-sm text-[#438F00]"><Check size={16} aria-hidden="true" />{message}</p>}
+
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0">
