@@ -17,7 +17,6 @@ import {
   LogOut,
   LogIn,
   UserPlus,
-  ChevronDown,
   ShoppingBag,
   Settings,
   Heart,
@@ -38,6 +37,15 @@ function NavigationReset({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname();
   useEffect(() => { onNavigate(); }, [pathname, onNavigate]);
   return null;
+}
+
+function AccountAvatar({ src, className = "h-10 w-10" }: { src: string | null; className?: string }) {
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const validSource = src && (/^\/(?!\/)/.test(src) || /^https?:\/\//i.test(src));
+  return <span className={`relative block shrink-0 overflow-hidden rounded-full bg-[#65D900]/10 ring-2 ring-[#65D900]/70 ring-offset-2 ring-offset-[#010101] ${className}`}>
+    <Image src={validSource && failedSource !== src ? src : "/Unknown.jpg"} alt="" fill sizes="56px" unoptimized
+      onError={() => setFailedSource(src)} className="object-cover" />
+  </span>;
 }
 
 export default function Navbar() {
@@ -117,7 +125,7 @@ export default function Navbar() {
               width={230}
               height={70}
               priority
-              className="h-auto w-[145px] object-contain sm:w-[190px] lg:w-[210px]"
+              className={user ? "h-auto w-[100px] object-contain min-[360px]:w-[125px] sm:w-[170px] lg:w-[190px]" : "h-auto w-[145px] object-contain sm:w-[190px] lg:w-[210px]"}
             />
           </Link>
 
@@ -135,16 +143,20 @@ export default function Navbar() {
           </nav>
 
           {/* Actions */}
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className={user ? "flex shrink-0 items-center gap-1 sm:gap-2.5" : "flex shrink-0 items-center gap-2 sm:gap-3"}>
 
             {loading ? <span role="status" className="hidden text-xs text-gray-300 sm:block">Vérification de la session…</span> : user ? (
-              <div ref={accountMenu} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setAccountOpen(false); }} className="relative hidden text-white sm:block">
-                <button ref={accountTrigger} type="button" onClick={() => setAccountOpen(value => !value)} aria-expanded={accountOpen} aria-controls={accountMenuId} className="flex items-center gap-2 rounded-full px-3 py-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#65D900]">
-                  <UserRound size={19} aria-hidden="true" /><span className="max-w-28 truncate text-sm" title={user.name}>{user.name}</span><ChevronDown size={15} aria-hidden="true" className={accountOpen ? "rotate-180" : ""} />
+              <div ref={accountMenu} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setAccountOpen(false); }} className="relative order-1 ml-1 text-white sm:ml-1.5 sm:border-l sm:border-white/15 sm:pl-3">
+                <button ref={accountTrigger} type="button" onClick={() => setAccountOpen(value => !value)} aria-label={`Mon compte : ${user.name}`} aria-expanded={accountOpen} aria-controls={accountMenuId} className={`flex h-10 w-10 items-center justify-center rounded-full p-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#65D900] sm:h-12 sm:w-12 ${accountOpen ? "bg-white/10" : "hover:bg-white/10"}`}>
+                  <AccountAvatar src={user.image} className="h-8 w-8 sm:h-10 sm:w-10" />
                 </button>
-                {accountOpen && <div id={accountMenuId} className="absolute right-0 top-full z-50 mt-3 w-56 rounded-xl border border-gray-100 bg-white p-2 text-gray-900 shadow-lg">
-                  <nav aria-label="Mon compte">{accountLinks.map(({ href, label, Icon }) => <Link key={href} href={href} onClick={() => setAccountOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold hover:bg-[#65D900]/10 focus-visible:outline-2 focus-visible:outline-[#65D900]"><Icon size={18} aria-hidden="true" />{label}</Link>)}</nav>
-                  <button type="button" onClick={handleLogout} disabled={loggingOut} className="mt-1 flex w-full items-center gap-3 rounded-lg border-t border-gray-100 px-3 py-3 text-sm font-semibold hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-[#65D900] disabled:opacity-50"><LogOut size={18} aria-hidden="true" />{loggingOut ? "Déconnexion…" : "Déconnexion"}</button>
+                {accountOpen && <div id={accountMenuId} className="absolute -right-[8.25rem] top-full z-50 mt-4 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white text-gray-900 shadow-2xl shadow-black/20 sm:-right-[9.875rem] xl:-right-[6.75rem]">
+                  <div className="flex items-center gap-4 border-b border-gray-100 bg-[#F7F8F6] px-5 py-5">
+                    <AccountAvatar src={user.image} className="h-11 w-11 !ring-offset-[#F7F8F6]" />
+                    <div className="min-w-0"><p className="truncate text-sm font-bold" title={user.name}>{user.name}</p><p className="mt-1 truncate text-xs text-gray-500" title={user.email}>{user.email}</p></div>
+                  </div>
+                  <nav aria-label="Mon compte" className="space-y-1 p-2">{accountLinks.map(({ href, label, Icon }) => <Link key={href} href={href} onClick={() => setAccountOpen(false)} className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-[#65D900]/10 focus-visible:outline-2 focus-visible:outline-[#65D900]"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors group-hover:bg-[#65D900]/20 group-hover:text-[#438F00]"><Icon size={17} aria-hidden="true" /></span>{label}</Link>)}</nav>
+                  <div className="border-t border-gray-100 p-2"><button type="button" onClick={handleLogout} disabled={loggingOut} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-[#65D900] disabled:opacity-50"><span className="flex h-8 w-8 items-center justify-center"><LogOut size={17} aria-hidden="true" /></span>{loggingOut ? "Déconnexion…" : "Déconnexion"}</button></div>
                 </div>}
               </div>
             ) : (
@@ -163,7 +175,7 @@ export default function Navbar() {
               aria-label={wishlistCount === null || wishlistLoading ? "Mes favoris" : `Mes favoris (${wishlistCount} produit${wishlistCount > 1 ? "s" : ""})`}
               aria-busy={wishlistLoading}
               onClick={closeMenus}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black focus-visible:outline-2 focus-visible:outline-[#65D900]"
+              className={user ? "relative order-2 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-200 transition hover:border-[#65D900] hover:bg-[#65D900] hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900] sm:h-11 sm:w-11" : "relative flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black focus-visible:outline-2 focus-visible:outline-[#65D900]"}
             >
               <Heart size={22} aria-hidden="true" />
               {!wishlistLoading && wishlistCount !== null && <span aria-live="polite" className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#65D900] px-1 text-[11px] font-bold text-black">{wishlistCount}</span>}
@@ -173,7 +185,7 @@ export default function Navbar() {
             <Link
               href="/panier"
               aria-label={`Mon panier (${count} article${count > 1 ? "s" : ""})`}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black"
+              className={user ? "relative order-3 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-200 transition hover:border-[#65D900] hover:bg-[#65D900] hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900] sm:h-11 sm:w-11" : "relative flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black"}
             >
               <ShoppingCart size={22} />
               <span aria-live="polite" className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#65D900] px-1 text-[11px] font-bold text-black">
@@ -187,7 +199,7 @@ export default function Navbar() {
               onClick={() => { setIsMenuOpen(!isMenuOpen); setAccountOpen(false); }}
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={isMenuOpen}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black xl:hidden"
+              className={user ? "order-4 flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/10 hover:text-[#65D900] focus-visible:outline-2 focus-visible:outline-[#65D900] xl:hidden" : "flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-[#65D900] hover:text-black xl:hidden"}
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -213,15 +225,7 @@ export default function Navbar() {
             </nav>
 
             {/* Mobile Account Actions */}
-            {loading ? <p role="status" className="mt-5 text-sm text-gray-300">Vérification de la session…</p> : user ? (
-              <div className="mt-5 flex flex-col gap-3">
-                <p className="flex items-center gap-3 break-words rounded-lg bg-white/5 p-3 font-medium text-white"><UserRound size={20} className="shrink-0" aria-hidden="true" />{user.name}</p>
-                {accountLinks.map(({ href, label, Icon }) => <Link key={href} href={href} onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 rounded-lg bg-white/5 p-3 font-semibold text-white hover:text-[#65D900] focus-visible:outline-2 focus-visible:outline-[#65D900]"><Icon size={20} aria-hidden="true" />{label}</Link>)}
-                <button type="button" onClick={handleLogout} disabled={loggingOut} className="flex items-center gap-3 rounded-lg bg-white/5 p-3 text-left font-semibold text-white disabled:opacity-50 focus-visible:outline-2">
-                  <LogOut size={20} aria-hidden="true" />{loggingOut ? "Déconnexion…" : "Déconnexion"}
-                </button>
-              </div>
-            ) : (
+            {loading ? <p role="status" className="mt-5 text-sm text-gray-300">Vérification de la session…</p> : user ? null : (
               <div className="mt-5 flex flex-col gap-3">
                 <Link href="/connexion" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center gap-2 rounded-lg border border-white/15 p-3 font-semibold text-white transition hover:border-[#65D900] hover:text-[#65D900]">
                   <LogIn size={19} />Connexion
