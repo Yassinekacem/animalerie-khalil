@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShoppingBag, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { accountButton, accountRequest } from "@/components/AccountArea";
+import { useToast } from "@/components/ToastProvider";
 
 const statuses = { EN_ATTENTE: "En attente", CONFIRMEE: "Confirmée", EN_LIVRAISON: "En livraison", LIVREE: "Livrée", ANNULEE: "Annulée" } as const;
 type Order = { id: number; reference: string; status: keyof typeof statuses; createdAt: string; total: string };
@@ -57,13 +58,20 @@ export default function OrdersClient() {
             <button disabled={data.page >= data.totalPages} onClick={() => setPage(data.page + 1)} className={`${accountButton} bg-gray-100`}>Suivant</button>
           </nav>}
         </>)}
-    {detailsId !== null && <OrderDialog key={detailsId} id={detailsId} onClose={() => setDetailsId(null)} />}
+    {detailsId !== null && <OrderDialog key={detailsId} id={detailsId} onClose={() => setDetailsId(null)} onUpdate={updated => {
+      setResult(current => current.data ? { ...current, data: { ...current.data, orders: current.data.orders.map(order => order.id === updated.id ? { ...order, status: updated.status } : order) } } : current);
+    }} />}
   </section>;
 }
 
-function OrderDialog({ id, onClose }: { id: number; onClose: () => void }) {
+function OrderDialog({ id, onClose, onUpdate }: { id: number; onClose: () => void; onUpdate: (order: OrderDetail) => void }) {
   const { refresh } = useAuth();
   const dialog = useRef<HTMLDialogElement>(null);
+  const toast = useToast();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const saving = useRef(false);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: number; data?: OrderDetail; error?: string }>({ key: -1 });
   useEffect(() => {
@@ -81,9 +89,43 @@ function OrderDialog({ id, onClose }: { id: number; onClose: () => void }) {
     return () => controller.abort();
   }, [id, retry, refresh]);
   const order = result.key === retry ? result.data : undefined;
-  return <dialog ref={dialog} aria-labelledby="order-title" onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === e.currentTarget) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-gray-100 bg-white p-0 text-gray-900 shadow-xl backdrop:bg-black/50">
+  const close = () => { if (!saving.current) onClose(); };
+
+  async function cancelOrder() {
+    if (saving.current || !confirmCancel || order?.status !== "EN_ATTENTE") return;
+    saving.current = true;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      const response = await fetch(`/api/orders/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "ANNULEE" }), cache: "no-store" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 401) void refresh();
+        if (response.status === 409) {
+          try {
+            const current = await accountRequest<OrderDetail>(`/api/orders/${id}?scope=mine`, {}, refresh);
+            setResult({ key: retry, data: current });
+            onUpdate(current);
+            setConfirmCancel(false);
+          } catch { /* Preserve the cancellation error and allow an explicit refresh. */ }
+        }
+        throw new Error(data?.error ?? "Impossible d’annuler la commande. Veuillez réessayer.");
+      }
+      if (data?.id !== id || data.status !== "ANNULEE") throw new Error("Réponse du serveur incorrecte. Actualisez les détails avant de réessayer.");
+      onUpdate(data);
+      onClose();
+      toast("Votre commande a été annulée.");
+    } catch (error) {
+      setCancelError(error instanceof TypeError ? "Impossible de contacter le serveur. Vérifiez votre connexion puis réessayez." : error instanceof Error ? error.message : "Impossible d’annuler la commande.");
+    } finally {
+      saving.current = false;
+      setCancelling(false);
+    }
+  }
+
+  return <dialog ref={dialog} aria-labelledby="order-title" aria-busy={cancelling} onCancel={e => { e.preventDefault(); close(); }} onClick={e => { if (e.target === e.currentTarget) close(); }} className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-gray-100 bg-white p-0 text-gray-900 shadow-xl backdrop:bg-black/50">
     <div className="p-5 sm:p-8">
-      <div className="flex items-start justify-between gap-3"><h2 id="order-title" className="min-w-0 break-all text-lg font-extrabold">{order ? order.reference : "Détails de la commande"}</h2><button autoFocus onClick={onClose} aria-label="Fermer les détails" className="shrink-0 rounded-lg p-2 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-[#65D900]"><X size={20} /></button></div>
+      <div className="flex items-start justify-between gap-3"><h2 id="order-title" className="min-w-0 break-all text-lg font-extrabold">{order ? order.reference : "Détails de la commande"}</h2><button autoFocus onClick={close} disabled={cancelling} aria-label="Fermer les détails" className="shrink-0 rounded-lg p-2 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-[#65D900] disabled:opacity-50"><X size={20} /></button></div>
       {result.key !== retry ? <p role="status" className="py-8 text-sm text-gray-500">Chargement de la commande…</p> : result.error ?
         <div role="alert" className="mt-6 text-sm text-red-700"><p>{result.error}</p><button onClick={() => setRetry(v => v + 1)} className={`${accountButton} mt-3 bg-gray-100`}>Réessayer</button></div> : order && <>
           <div className="my-5 flex flex-wrap items-center justify-between gap-3"><time dateTime={order.createdAt} className="text-sm text-gray-500">{dateLabel(order.createdAt)}</time><Status status={order.status} /></div>
@@ -92,7 +134,18 @@ function OrderDialog({ id, onClose }: { id: number; onClose: () => void }) {
           <ul className="mt-3 divide-y divide-gray-100">{order.items.map(item => <li key={item.id} className="flex flex-wrap justify-between gap-3 py-4 text-sm"><div className="min-w-0 flex-1"><p className="break-words font-semibold">{item.productName}</p><p className="mt-1 text-gray-500">{item.quantity} × {money(item.unitPrice)}</p></div><p className="font-semibold tabular-nums">{money(millimes(item.unitPrice) * BigInt(item.quantity))}</p></li>)}</ul>
           <dl className="mt-4 space-y-3 border-t border-gray-200 pt-5 text-sm">{[["Sous-total", order.subtotal], ["Livraison", order.deliveryFee], ["Total", order.total]].map(([label, amount]) => <div key={label} className={`flex flex-wrap justify-between gap-3 ${label === "Total" ? "text-base font-extrabold" : "text-gray-600"}`}><dt>{label}</dt><dd className="tabular-nums">{money(amount)}</dd></div>)}</dl>
         </>}
-      <button onClick={onClose} className={`${accountButton} mt-6 w-full bg-[#010101] text-white hover:bg-gray-800`}>Fermer</button>
+      {order?.status === "EN_ATTENTE" && <div className="mt-6 border-t border-gray-100 pt-5">
+        {confirmCancel ? <section aria-labelledby="cancel-order-title" className="rounded-xl border border-red-100 bg-red-50/60 p-4">
+          <h3 id="cancel-order-title" className="text-sm font-bold text-gray-900">Confirmer l’annulation ?</h3>
+          <p className="mt-2 text-sm leading-6 text-gray-600">La commande {order.reference} sera annulée. Cette action est définitive.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button type="button" disabled={cancelling} onClick={() => setConfirmCancel(false)} className={`${accountButton} bg-white text-gray-800`}>Conserver ma commande</button>
+            <button type="button" disabled={cancelling} onClick={() => void cancelOrder()} className={`${accountButton} bg-red-600 text-white hover:bg-red-700`}>{cancelling ? "Annulation en cours…" : "Oui, annuler la commande"}</button>
+          </div>
+        </section> : <button type="button" onClick={() => { setCancelError(""); setConfirmCancel(true); }} className={`${accountButton} w-full border border-red-200 bg-white text-red-700 hover:bg-red-50`}>Annuler la commande</button>}
+      </div>}
+      {cancelError && <div role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700"><p>{cancelError}</p><button type="button" disabled={cancelling} onClick={() => { setConfirmCancel(false); setCancelError(""); setRetry(value => value + 1); }} className="mt-3 rounded font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-[#65D900]">Actualiser les détails</button></div>}
+      <button onClick={close} disabled={cancelling} className={`${accountButton} mt-6 w-full bg-[#010101] text-white hover:bg-gray-800`}>Fermer</button>
     </div>
   </dialog>;
 }

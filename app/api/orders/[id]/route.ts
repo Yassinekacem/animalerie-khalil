@@ -39,3 +39,33 @@ export async function GET(_request: Request, context: Context) {
     return json({ error: "Erreur interne du serveur." }, 500);
   }
 }
+
+// Customer cancellation is separate from administrative status transitions.
+export async function PATCH(request: Request, context: Context) {
+  try {
+    const user = await requireUser(request);
+    const id = idSchema.parse((await context.params).id);
+    z.strictObject({ status: z.literal("ANNULEE") }).parse(await request.json());
+    const order = await prisma.order.update({
+      // Ownership and status are checked atomically, including during concurrent admin updates.
+      where: { id, userId: user.id, status: "EN_ATTENTE" },
+      data: { status: "ANNULEE" },
+      include: { items: { orderBy: { id: "asc" } } },
+    });
+    return json(order);
+  } catch (error) {
+    if (error instanceof AuthError) return authError(error);
+    if (error instanceof z.ZodError) return json({ error: "Données invalides.", issues: error.issues }, 400);
+    if (error instanceof SyntaxError) return json({ error: "Corps JSON incorrect." }, 400);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025" || error.code === "P2034") {
+        return json({ error: "L’annulation est impossible : la commande n’est plus en attente ou n’est plus accessible. Ses détails vont être actualisés." }, 409);
+      }
+      if (error.code === "P2021" || error.code === "P2022") {
+        return json({ error: "Le service des commandes est temporairement indisponible." }, 503);
+      }
+    }
+    console.error("Order cancellation API error:", error);
+    return json({ error: "Impossible d’annuler la commande. Veuillez réessayer." }, 500);
+  }
+}
