@@ -532,6 +532,7 @@ function Catalogue() {
                     <option value="newest">Nouveautés</option>
                     <option value="price-asc">Prix croissant</option>
                     <option value="price-desc">Prix décroissant</option>
+                    <option value="rating-desc">Les mieux notés</option>
                   </select>
                   <ChevronDown
                     size={16}

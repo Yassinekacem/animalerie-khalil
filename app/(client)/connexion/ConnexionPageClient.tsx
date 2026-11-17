@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import TypewriterTitle from "@/components/TypewriterTitle";
 import {
   Mail,
   Lock,
@@ -119,7 +120,7 @@ export default function ConnexionPageClient() {
                 </p>
 
                 <h2 className="text-3xl font-extrabold text-[#111111] sm:text-4xl">
-                  Connexion<span className="text-[#65D900]">.</span>
+                  <TypewriterTitle text="Connectez-vous maintenant." />
                 </h2>
 
                 <p className="mt-3 text-sm leading-6 text-gray-500">

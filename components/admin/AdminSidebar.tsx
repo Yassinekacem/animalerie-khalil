@@ -18,33 +18,29 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-const adminLinks = [ 
-    { 
-    name: "Tableau de bord",
-    href: "/admin",
-    icon: LayoutDashboard,
-  },
-  { 
-    
-    name: "Gestion utilisateurs",
-    href: "/admin/utilisateurs",
-    icon: Users,
+const dashboardLink = {
+  name: "Tableau de bord",
+  href: "/admin",
+  icon: LayoutDashboard,
+};
+
+const adminSections = [
+  {
+    title: "Gestion",
+    links: [
+      { name: "Utilisateurs", href: "/admin/utilisateurs", icon: Users },
+      { name: "Produits", href: "/admin/produits", icon: Package },
+      { name: "Commandes", href: "/admin/commandes", icon: ShoppingBag },
+    ],
   },
   {
-    name: "Gestion produits",
-    href: "/admin/produits",
-    icon: Package,
+    title: "Statistiques",
+    links: [
+      { name: "Utilisateurs", href: "/admin/statistiques/utilisateurs", icon: Users },
+      { name: "Produits", href: "/admin/statistiques/produits", icon: Package },
+      { name: "Commandes", href: "/admin/statistiques/commandes", icon: ChartNoAxesCombined },
+    ],
   },
-  {
-    name: "Gestion commandes",
-    href: "/admin/commandes",
-    icon: ShoppingBag,
-  },
-  {
-    name: "Statistiques",
-    href: "/admin/statistiques",
-    icon: ChartNoAxesCombined,
-  }
 ];
 
 export default function AdminSidebar() {
@@ -140,8 +136,8 @@ export default function AdminSidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-2">
-          {adminLinks.map((link) => {
+        <nav className="flex-1 space-y-5 overflow-y-auto px-4 py-2">
+          {[dashboardLink].map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;
 
@@ -169,6 +165,42 @@ export default function AdminSidebar() {
               </Link>
             );
           })}
+          {adminSections.map((section) => (
+            <section key={section.title} aria-label={section.title}>
+              <h2 className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                {section.title}
+              </h2>
+              <div className="space-y-1">
+                {section.links.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setIsOpen(false)}
+                      className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                        isActive
+                          ? "bg-[#65D900] text-black shadow-lg shadow-[#65D900]/10"
+                          : "text-gray-300 hover:bg-white/5 hover:text-[#65D900]"
+                      }`}
+                    >
+                      <Icon
+                        size={20}
+                        className={`shrink-0 transition ${
+                          isActive
+                            ? "text-black"
+                            : "text-gray-400 group-hover:text-[#65D900]"
+                        }`}
+                      />
+                      <span>{link.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </nav>
 
  {/* Bottom Section */}

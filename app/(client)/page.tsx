@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Headphones,
   Gift,
+  PawPrint,
 } from "lucide-react";
 
 // ================= DATA =================
@@ -153,6 +154,16 @@ const underlineVariants: Variants = {
 };
 
 // ================= HOME PAGE =================
+
+function PawDecorations({ marks, dark = false }: { marks: string[]; dark?: boolean }) {
+  return (
+    <div aria-hidden="true" className={`pointer-events-none absolute inset-0 select-none overflow-hidden ${dark ? "text-[#65D900]/[0.055]" : "text-[#416533]/[0.045]"}`}>
+      {marks.map((position, index) => (
+        <PawPrint key={index} focusable="false" fill="currentColor" strokeWidth={0} className={`absolute ${position}`} />
+      ))}
+    </div>
+  );
+}
 
 // Reuse the existing home product card with the real catalogue fields.
 function ProductCard({ product }: { product: Product }) {
@@ -298,8 +309,12 @@ export default function HomePage() {
 
         {/* Background decoration */}
         <div className="absolute -right-32 -top-32 h-[500px] w-[500px] rounded-full bg-[#65D900]/10 blur-[100px]" />
+        <PawDecorations dark marks={[
+          "right-5 top-7 h-16 w-16 rotate-[22deg] sm:right-[8%] sm:h-24 sm:w-24",
+          "bottom-5 left-4 hidden h-20 w-20 -rotate-[18deg] lg:block",
+        ]} />
 
-        <div className="relative mx-auto grid min-h-[570px] max-w-7xl items-center gap-8 px-5 py-14 sm:min-h-[650px] sm:py-20 lg:grid-cols-2 lg:px-8">
+        <div className="relative z-10 mx-auto grid min-h-[570px] max-w-7xl items-center gap-8 px-5 py-14 sm:min-h-[650px] sm:py-20 lg:grid-cols-2 lg:px-8">
 
           {/* Hero text */}
           <div className="z-10 max-w-xl">
@@ -474,9 +489,14 @@ export default function HomePage() {
 
       {/* ================= CATEGORIES ================= */}
 
-      <section className="bg-[#F8F9F7] px-5 py-16 sm:py-20 lg:px-8">
+      <section className="relative overflow-hidden bg-[#F8F9F7] px-5 py-16 sm:py-20 lg:px-8">
+        <PawDecorations marks={[
+          "right-[14%] top-3 hidden h-14 w-14 rotate-[28deg] sm:block",
+          "-right-3 bottom-2 h-20 w-20 -rotate-[16deg] sm:right-4 sm:h-28 sm:w-28",
+          "bottom-4 left-[7%] h-10 w-10 rotate-[18deg]",
+        ]} />
 
-        <div className="mx-auto max-w-7xl">
+        <div className="relative z-10 mx-auto max-w-7xl">
 
           <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -540,9 +560,14 @@ export default function HomePage() {
 
       {/* ================= FEATURED PRODUCTS ================= */}
 
-      <section className="bg-white px-5 py-16 sm:py-20 lg:px-8">
+      <section className="relative overflow-hidden bg-white px-5 py-16 sm:py-20 lg:px-8">
+        <PawDecorations marks={[
+          "right-3 top-4 h-14 w-14 rotate-[18deg] sm:right-[4%] sm:h-20 sm:w-20",
+          "bottom-3 left-[3%] hidden h-14 w-14 -rotate-[26deg] sm:block",
+          "bottom-4 right-[10%] h-10 w-10 rotate-[24deg]",
+        ]} />
 
-        <div className="mx-auto max-w-7xl">
+        <div className="relative z-10 mx-auto max-w-7xl">
 
           <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -590,8 +615,12 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl bg-[#010101]">
 
           <div className="absolute -right-20 -top-24 h-80 w-80 rounded-full bg-[#65D900]/20 blur-[80px]" />
+          <PawDecorations dark marks={[
+            "left-[44%] top-5 hidden h-16 w-16 rotate-[32deg] lg:block",
+            "bottom-4 left-[6%] hidden h-12 w-12 -rotate-[20deg] sm:block",
+          ]} />
 
-          <div className="relative grid items-center gap-8 px-7 py-12 sm:px-12 sm:py-16 lg:grid-cols-2">
+          <div className="relative z-10 grid items-center gap-8 px-7 py-12 sm:px-12 sm:py-16 lg:grid-cols-2">
 
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-[#65D900] px-4 py-2 text-xs font-extrabold text-black">
@@ -634,9 +663,14 @@ export default function HomePage() {
 
       {/* ================= WHY CHOOSE US ================= */}
 
-      <section className="bg-[#F8F9F7] px-5 py-16 sm:py-20 lg:px-8">
+      <section className="relative overflow-hidden bg-[#F8F9F7] px-5 py-16 sm:py-20 lg:px-8">
+        <PawDecorations marks={[
+          "left-4 top-6 h-12 w-12 -rotate-[24deg] sm:left-[5%] sm:h-16 sm:w-16",
+          "bottom-1 right-[5%] h-20 w-20 rotate-[20deg] sm:h-24 sm:w-24",
+          "right-[7%] top-8 hidden h-12 w-12 -rotate-[14deg] md:block",
+        ]} />
 
-        <div className="mx-auto max-w-7xl">
+        <div className="relative z-10 mx-auto max-w-7xl">
 
           <div className="mx-auto mb-12 max-w-xl text-center">
             <p className="mb-2 text-xs font-bold uppercase tracking-[3px] text-[#55B900]">

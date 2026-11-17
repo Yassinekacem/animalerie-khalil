@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import TypewriterTitle from "@/components/TypewriterTitle";
 import {
   UserRound,
   Mail,
@@ -237,8 +238,7 @@ export default function InscriptionPageClient() {
                 </p>
 
                 <h2 className="text-3xl font-extrabold text-[#111111] sm:text-4xl">
-                  Créer un compte
-                  <span className="text-[#65D900]">.</span>
+                  <TypewriterTitle text="Créer un compte." />
                 </h2>
 
                 <p className="mt-3 text-sm leading-6 text-gray-500">

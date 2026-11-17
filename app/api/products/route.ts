@@ -81,7 +81,7 @@ const querySchema = z.object({
   brand: z.string().trim().min(1).optional(),
   minPrice: moneySchema.optional(),
   maxPrice: moneySchema.optional(),
-  sort: z.enum(["newest", "price-asc", "price-desc"]).default("newest"),
+  sort: z.enum(["newest", "price-asc", "price-desc", "rating-desc"]).default("newest"),
   brandsOnly: z.enum(["true", "false"]).optional(),
   page: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(2147483647)).default(1),
   pageSize: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(48)).default(12),
@@ -123,11 +123,19 @@ export async function GET(request: Request) {
     if (query.minPrice !== undefined) conditions.push(Prisma.sql`COALESCE("promoPrice", "price") >= ${query.minPrice.toString()}::numeric`);
     if (query.maxPrice !== undefined) conditions.push(Prisma.sql`COALESCE("promoPrice", "price") <= ${query.maxPrice.toString()}::numeric`);
     const where = conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}` : Prisma.empty;
+    const reviewJoin = query.sort === "rating-desc" ? Prisma.sql`
+      LEFT JOIN (
+        SELECT "productId", AVG("rating") AS "averageRating", COUNT(*) AS "reviewCount"
+        FROM "Review" GROUP BY "productId"
+      ) AS "reviewStats" ON "reviewStats"."productId" = "Product"."id"
+    ` : Prisma.empty;
     const order = query.sort === "price-asc"
       ? Prisma.sql`COALESCE("promoPrice", "price") ASC, "id" ASC`
       : query.sort === "price-desc"
         ? Prisma.sql`COALESCE("promoPrice", "price") DESC, "id" DESC`
-        : Prisma.sql`"createdAt" DESC, "id" DESC`;
+        : query.sort === "rating-desc"
+          ? Prisma.sql`"reviewStats"."averageRating" DESC NULLS LAST, "reviewStats"."reviewCount" DESC NULLS LAST, "Product"."id" DESC`
+          : Prisma.sql`"createdAt" DESC, "id" DESC`;
     // A consistent snapshot keeps the count and page aligned during concurrent writes.
     const result = await prisma.$transaction(async tx => {
       const [count] = await tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "Product" ${where}`);
@@ -135,7 +143,7 @@ export async function GET(request: Request) {
       const totalPages = Math.ceil(total / query.pageSize);
       const page = Math.min(query.page, Math.max(1, totalPages));
       const products = total === 0 ? [] : await tx.$queryRaw<DatabaseProduct[]>(
-        Prisma.sql`SELECT * FROM "Product" ${where} ORDER BY ${order} LIMIT ${query.pageSize} OFFSET ${(page - 1) * query.pageSize}`
+        Prisma.sql`SELECT "Product".* FROM "Product" ${reviewJoin} ${where} ORDER BY ${order} LIMIT ${query.pageSize} OFFSET ${(page - 1) * query.pageSize}`
       );
       return { products, total, page, totalPages, pageSize: query.pageSize };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
