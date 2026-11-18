@@ -10,6 +10,8 @@ export const prisma =
   new PrismaClient({
     adapter: new PrismaPg({
       connectionString: process.env.DATABASE_URL!,
+      // Allow cold connections to establish, but never wait indefinitely for the pool.
+      connectionTimeoutMillis: 15_000,
     }),
   });
 

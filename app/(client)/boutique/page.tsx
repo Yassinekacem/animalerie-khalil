@@ -18,6 +18,7 @@ import {
   PackageCheck,
   Truck,
   RotateCcw,
+  PawPrint,
 } from "lucide-react";
 
 /* ============================================================
@@ -438,7 +439,26 @@ function Catalogue() {
      ============================================================ */
 
   return (
-    <main className="min-h-screen bg-[#F7F8F6]">
+    <main className="min-h-screen bg-[#F7F8F6]"> 
+    <section className="bg-[#010101] px-4 py-12 text-white sm:py-16">
+        <div className="mx-auto max-w-7xl">
+  
+
+          <div className="max-w-2xl">
+   
+
+            <h1 className="text-3xl font-extrabold leading-tight sm:text-5xl">
+              Tout pour vos
+              <span className="text-[#65D900]"> compagnons</span>
+            </h1>
+
+            <p className="mt-4 max-w-lg text-sm leading-6 text-gray-400 sm:text-base">
+              Découvrez notre sélection d'alimentation, accessoires
+              et produits de qualité pour prendre soin de vos animaux.
+            </p>
+          </div>
+        </div>
+      </section>
       <section className="border-b border-gray-100 bg-white">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 py-5 sm:grid-cols-3 lg:px-8">
           {[
@@ -503,7 +523,7 @@ function Catalogue() {
                   value={searchInput}
                   onChange={event => setSearchInput(event.target.value)}
                   placeholder="Rechercher un produit"
-                  className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+                  className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400 [&::-webkit-search-cancel-button]:appearance-none"
                 />
                 {searchInput && (
                   <button

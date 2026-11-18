@@ -5,6 +5,7 @@ import { useToast } from "@/components/ToastProvider";
 import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import ProductImageZoom from "@/components/ProductImageZoom";
 import ProductCard, { type Product as CardProduct } from "@/components/ProductCard";
+import { Stars } from "@/components/ProductRating";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -501,7 +502,7 @@ function ProductContent({ product }: { product: Product }) {
    ============================================================ */
 
 function SimilarProducts({ product }: { product: Product }) {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<CardProduct[]>([]);
   const [navigation, setNavigation] = useState({ previous: false, next: false });
   const toast = useToast();
   const [cartMessage, setCartMessage] = useState({ text: "", error: false });
@@ -523,7 +524,7 @@ function SimilarProducts({ product }: { product: Product }) {
           throw new Error("Réponse catalogue incorrecte.");
         }
         if (!controller.signal.aborted) {
-          setProducts(data.products.filter((item: Product) => item.id !== id && item.targetAnimal === targetAnimal && item.category === category).slice(0, 10));
+          setProducts((data.products as (Product & CardProduct)[]).filter(item => item.id !== id && item.targetAnimal === targetAnimal && item.category === category).slice(0, 10));
         }
       } catch {
         if (!controller.signal.aborted) setProducts([]);
@@ -672,39 +673,6 @@ function ContactCard() {
    Étoiles (affichage)
    ============================================================ */
 
-function Stars({ value, size = 16 }: { value: number; size?: number }) {
-  return (
-    <span className="inline-flex items-center gap-0.5" aria-hidden="true">
-      {[1, 2, 3, 4, 5].map(star => {
-        const filled = value >= star;
-        const half = !filled && value >= star - 0.5;
-        return (
-          <span key={star} className="relative inline-block" style={{ width: size, height: size }}>
-            <Star
-              size={size}
-              className="absolute inset-0 text-gray-300"
-              fill="currentColor"
-              strokeWidth={0}
-            />
-            {(filled || half) && (
-              <span
-                className="absolute inset-0 overflow-hidden"
-                style={{ width: filled ? size : size / 2 }}
-              >
-                <Star
-                  size={size}
-                  className="text-[#FFB400]"
-                  fill="currentColor"
-                  strokeWidth={0}
-                />
-              </span>
-            )}
-          </span>
-        );
-      })}
-    </span>
-  );
-}
 
 /* ============================================================
    Étoiles interactives (accessibles clavier)

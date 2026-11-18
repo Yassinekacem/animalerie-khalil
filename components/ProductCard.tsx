@@ -4,10 +4,11 @@ import { memo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, ShoppingCart } from "lucide-react";
+import ProductRating, { type ReviewSummary } from "@/components/ProductRating";
 import { useWishlist } from "@/components/WishlistProvider";
 import { categories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
 
-export type Product = {
+export type Product = ReviewSummary & {
   id: number;
   name: string;
   brand: string | null;
@@ -29,22 +30,23 @@ const Skeleton = memo(function Skeleton({ className = "" }: { className?: string
 
 export const ProductCardSkeleton = memo(function ProductCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
-      <div className="relative aspect-square overflow-hidden bg-gray-100">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white">
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-gray-100">
         <Skeleton className="h-full w-full rounded-none" />
       </div>
-      <div className="p-3 sm:p-4">
-        <Skeleton className="mb-2 h-2.5 w-20" />
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
+        <Skeleton className="mb-2 h-4 w-20 max-w-full" />
+        <div className="h-10 space-y-2">
+          <Skeleton className="block h-4 w-full" />
+          <Skeleton className="block h-4 w-3/4" />
         </div>
-        <Skeleton className="mt-2 h-3 w-16" />
-        <div className="mt-3 flex items-center gap-2">
-          <Skeleton className="h-4 w-14" />
-          <Skeleton className="h-5 w-20" />
+        <Skeleton className="mt-2 h-4 w-16 max-w-full" />
+        <div className="mt-2 flex h-10 items-center sm:h-6"><Skeleton className="h-3 w-24 max-w-full" /></div>
+        <div className="mt-3 grid h-12 grid-rows-[1rem_2rem]">
+          <Skeleton className="h-3 w-14 max-w-full" />
+          <Skeleton className="my-auto h-5 w-20 max-w-full" />
         </div>
-        <Skeleton className="mt-4 h-11 w-full rounded-xl" />
+        <div className="mt-auto pt-4"><Skeleton className="block h-12 w-full rounded-xl" /></div>
       </div>
     </div>
   );
@@ -89,8 +91,8 @@ const ProductCard = memo(function ProductCard({
     : 0;
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative aspect-square overflow-hidden bg-gray-100">
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-gray-100">
         <Link
           href={`/boutique/${product.id}`}
           aria-label={`Voir ${product.name}`}
@@ -120,15 +122,15 @@ const ProductCard = memo(function ProductCard({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col p-3 sm:p-4">
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
         {/* ✅ Catégorie : 1 seule ligne, hauteur fixe, tronquée si trop longue */}
-        <p className="mb-2 h-4 truncate text-[10px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
+        <p className="mb-2 h-4 shrink-0 truncate text-[10px] font-bold uppercase leading-4 tracking-wider text-[#55B900] sm:text-xs">
           {categories[product.targetAnimal]?.find(item => item.id === product.category)?.name ??
             product.category}
         </p>
 
         {/* Nom : hauteur fixe (2 lignes) */}
-        <h2 className="line-clamp-2 min-h-10 text-sm font-bold leading-5 text-gray-900 sm:text-base">
+        <h2 title={product.name} className="line-clamp-2 h-10 shrink-0 text-sm font-bold leading-5 text-gray-900 [overflow-wrap:anywhere] sm:text-base">
           <Link
             href={`/boutique/${product.id}`}
             className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[#65D900]"
@@ -138,30 +140,32 @@ const ProductCard = memo(function ProductCard({
         </h2>
 
         {/* Marque : hauteur fixe */}
-        <p className="mt-2 min-h-4 text-xs text-gray-500">{product.brand ?? "\u00A0"}</p>
+        <p title={product.brand ?? undefined} className="mt-2 h-4 shrink-0 truncate text-xs leading-4 text-gray-500">{product.brand ?? "\u00A0"}</p>
+        <ProductRating averageRating={product.averageRating} reviewCount={product.reviewCount} />
 
         {/* Prix : hauteur fixe quel que soit le nombre de prix affichés */}
-        <div className="mt-3 flex min-h-7 flex-wrap items-center gap-2">
+        <div className="mt-3 grid h-12 shrink-0 grid-rows-[1rem_2rem] tabular-nums">
           <del
-            className={`text-xs text-gray-400 ${hasPromo ? "" : "invisible"}`}
+            className={`min-w-0 truncate text-xs leading-4 text-gray-400 ${hasPromo ? "" : "invisible"}`}
+            title={hasPromo ? formatPrice(product.price) : undefined}
             aria-hidden={!hasPromo}
           >
             {formatPrice(product.price)}
           </del>
-          <span className="text-base font-extrabold text-gray-900 sm:text-lg">
+          <span className="whitespace-nowrap text-sm font-extrabold leading-8 text-gray-900 sm:text-lg">
             {formatPrice(product.promoPrice ?? product.price)}
           </span>
         </div>
 
         {/* Bouton poussé en bas grâce à flex-1 sur le parent */}
-        <button
+        <div className="mt-auto pt-4"><button
           disabled={!cartReady}
           onClick={() => onAddToCart(product)}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 py-3 text-xs font-bold text-black transition hover:bg-[#55BD00] disabled:opacity-50 sm:text-sm"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 text-xs font-bold leading-4 text-black transition hover:bg-[#55BD00] disabled:opacity-50 sm:text-sm"
         >
-          <ShoppingCart size={16} />
+          <ShoppingCart size={16} className="shrink-0" />
           Ajouter au panier
-        </button>
+        </button></div>
       </div>
     </article>
   );

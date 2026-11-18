@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useWishlist } from "@/components/WishlistProvider";
+import ProductRating, { type ReviewSummary } from "@/components/ProductRating";
 import { animals, categories as productCategories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
@@ -50,7 +51,7 @@ const categories = [
   },
 ];
 
-type Product = {
+type Product = ReviewSummary & {
   id: number;
   name: string;
   targetAnimal: Animal;
@@ -177,9 +178,9 @@ function ProductCard({ product }: { product: Product }) {
   const hasPromo = product.promoPrice !== null;
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
       {/* Image : ratio fixe */}
-      <div className="relative aspect-square overflow-hidden bg-gray-100">
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-gray-100">
         <Link
           href={`/boutique/${product.id}`}
           aria-label={`Voir ${product.name}`}
@@ -222,9 +223,9 @@ function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* Détails : colonne flex, bouton poussé en bas */}
-      <div className="flex flex-1 flex-col p-2.5 sm:p-4">
+      <div className="flex min-w-0 flex-1 flex-col p-2.5 sm:p-4">
         {/* Catégorie + animal : 1 ligne max */}
-        <p className="min-w-0 truncate text-[9px] font-bold uppercase tracking-wider text-[#55B900] sm:text-xs">
+        <p className="h-4 min-w-0 shrink-0 truncate text-[9px] font-bold uppercase leading-4 tracking-wider text-[#55B900] sm:text-xs">
           {productCategories[product.targetAnimal]?.find(
             category => category.id === product.category
           )?.name ?? product.category}{" "}
@@ -232,7 +233,7 @@ function ProductCard({ product }: { product: Product }) {
         </p>
 
         {/* Nom : 2 lignes réservées */}
-        <h3 className="mt-1.5 line-clamp-2 h-9 text-xs font-bold leading-[1.125rem] text-gray-900 sm:mt-2 sm:h-[3.25rem] sm:text-base sm:leading-[1.625rem]">
+        <h3 title={product.name} className="mt-1.5 line-clamp-2 h-9 shrink-0 text-xs font-bold leading-[1.125rem] text-gray-900 [overflow-wrap:anywhere] sm:mt-2 sm:h-[3.25rem] sm:text-base sm:leading-[1.625rem]">
           <Link
             href={`/boutique/${product.id}`}
             className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[#65D900]"
@@ -241,31 +242,26 @@ function ProductCard({ product }: { product: Product }) {
           </Link>
         </h3>
 
+        <ProductRating averageRating={product.averageRating} reviewCount={product.reviewCount} />
+
         {/* Prix : hauteur fixe, prix barré visible si promo */}
-        <div className="mt-2 flex h-6 flex-nowrap items-center gap-1.5 overflow-hidden sm:mt-3 sm:h-7 sm:gap-2">
-          <span className="shrink-0 whitespace-nowrap text-sm font-extrabold text-gray-900 sm:text-base">
+        <div className="mt-2 grid h-12 shrink-0 grid-rows-[1rem_2rem] tabular-nums sm:mt-3">
+          <del aria-hidden={!hasPromo} title={hasPromo ? formatPrice(product.price) : undefined} className={`min-w-0 truncate text-[10px] leading-4 text-gray-400 sm:text-xs ${hasPromo ? "" : "invisible"}`}>
+            {formatPrice(product.price)}
+          </del>
+          <span className="whitespace-nowrap text-sm font-extrabold leading-8 text-gray-900 sm:text-base">
             {formatPrice(product.promoPrice ?? product.price)}
           </span>
-
-          {hasPromo ? (
-            <span className="truncate text-[10px] text-gray-400 line-through sm:text-xs">
-              {formatPrice(product.price)}
-            </span>
-          ) : (
-            <span aria-hidden="true" className="invisible text-[10px] sm:text-xs">
-              &nbsp;
-            </span>
-          )}
         </div>
 
         {/* ✅ Espace garanti entre prix et bouton */}
         <div className="mt-auto pt-4 sm:pt-5">
           <Link
             href={`/boutique/${product.id}`}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#65D900] px-2 py-2.5 text-[11px] font-bold text-black transition hover:bg-[#55BD00] sm:gap-2 sm:rounded-xl sm:py-3 sm:text-sm"
+            className="flex h-12 w-full items-center justify-center gap-1.5 rounded-lg bg-[#65D900] px-2 text-[11px] font-bold leading-4 text-black transition hover:bg-[#55BD00] sm:gap-2 sm:rounded-xl sm:text-sm"
           >
-            <ShoppingCart size={14} className="sm:hidden" />
-            <ShoppingCart size={16} className="hidden sm:block" />
+            <ShoppingCart size={14} className="shrink-0 sm:hidden" />
+            <ShoppingCart size={16} className="hidden shrink-0 sm:block" />
             Découvrir le produit
           </Link>
         </div>

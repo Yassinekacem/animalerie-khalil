@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: { product: true },
     });
-    return authJson({ products: wishlist.map(item => item.product) });
+    return authJson({ products: await withReviewStats(wishlist.map(item => item.product)) });
   } catch (error) { return handleError(error); }
 }
 
@@ -43,8 +43,24 @@ export async function POST(request: Request) {
       data: { userId: user.id, productId },
       select: { product: true },
     });
-    return authJson({ message: "Produit ajouté aux favoris.", product: wishlist.product }, 201);
+    const [ratedProduct] = await withReviewStats([wishlist.product]);
+    return authJson({ message: "Produit ajouté aux favoris.", product: ratedProduct }, 201);
   } catch (error) { return handleError(error); }
+}
+
+async function withReviewStats<T extends { id: number }>(products: T[]) {
+  if (products.length === 0) return [];
+  const stats = await prisma.review.groupBy({
+    by: ["productId"],
+    where: { productId: { in: products.map(product => product.id) } },
+    _avg: { rating: true },
+    _count: { _all: true },
+  });
+  const byProduct = new Map(stats.map(stat => [stat.productId, stat]));
+  return products.map(product => {
+    const stat = byProduct.get(product.id);
+    return { ...product, averageRating: stat?._avg.rating ?? null, reviewCount: stat?._count._all ?? 0 };
+  });
 }
 
 export async function DELETE(request: Request) {

@@ -125,12 +125,12 @@ export async function GET(request: Request) {
     if (query.minPrice !== undefined) conditions.push(Prisma.sql`COALESCE("promoPrice", "price") >= ${query.minPrice.toString()}::numeric`);
     if (query.maxPrice !== undefined) conditions.push(Prisma.sql`COALESCE("promoPrice", "price") <= ${query.maxPrice.toString()}::numeric`);
     const where = conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}` : Prisma.empty;
-    const reviewJoin = query.sort === "rating-desc" ? Prisma.sql`
+    const reviewJoin = Prisma.sql`
       LEFT JOIN (
         SELECT "productId", AVG("rating") AS "averageRating", COUNT(*) AS "reviewCount"
         FROM "Review" GROUP BY "productId"
       ) AS "reviewStats" ON "reviewStats"."productId" = "Product"."id"
-    ` : Prisma.empty;
+    `;
     const order = query.sort === "price-asc"
       ? Prisma.sql`COALESCE("promoPrice", "price") ASC, "id" ASC`
       : query.sort === "price-desc"
@@ -138,18 +138,36 @@ export async function GET(request: Request) {
         : query.sort === "rating-desc"
           ? Prisma.sql`"reviewStats"."averageRating" DESC NULLS LAST, "reviewStats"."reviewCount" DESC NULLS LAST, "Product"."id" DESC`
           : Prisma.sql`"createdAt" DESC, "id" DESC`;
-    // A consistent snapshot keeps the count and page aligned during concurrent writes.
-    const result = await prisma.$transaction(async tx => {
-      const [count] = await tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "Product" ${where}`);
-      const total = Number(count.total);
-      const totalPages = Math.ceil(total / query.pageSize);
-      const page = Math.min(query.page, Math.max(1, totalPages));
-      const products = total === 0 ? [] : await tx.$queryRaw<DatabaseProduct[]>(
-        Prisma.sql`SELECT "Product".* FROM "Product" ${reviewJoin} ${where} ORDER BY ${order} LIMIT ${query.pageSize} OFFSET ${(page - 1) * query.pageSize}`
-      );
-      return { products, total, page, totalPages, pageSize: query.pageSize };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
-    return Response.json(result);
+    // One statement provides a single PostgreSQL snapshot without acquiring an
+    // interactive transaction (whose default maxWait can expire on a cold connection).
+    // NOT MATERIALIZED lets PostgreSQL use indexes separately for count and page.
+    type PageRow = ((DatabaseProduct & { averageRating: number | null; reviewCount: number }) | { id: null }) & { __total: bigint; __page: bigint };
+    const rows = await prisma.$queryRaw<PageRow[]>(Prisma.sql`
+      WITH filtered AS NOT MATERIALIZED (
+        SELECT * FROM "Product" ${where}
+      ), pagination AS (
+        SELECT COUNT(*) AS "__total",
+          LEAST(${query.page}::bigint,
+            GREATEST(1::bigint, CEIL(COUNT(*)::numeric / ${query.pageSize}::numeric)::bigint)
+          ) AS "__page"
+        FROM filtered
+      )
+      SELECT pagination."__total", pagination."__page", page_products.*
+      FROM pagination
+      LEFT JOIN LATERAL (
+        SELECT "Product".*, "reviewStats"."averageRating"::double precision AS "averageRating",
+          COALESCE("reviewStats"."reviewCount", 0)::integer AS "reviewCount"
+        FROM filtered AS "Product" ${reviewJoin}
+        ORDER BY ${order}
+        LIMIT ${query.pageSize}
+        OFFSET ((pagination."__page" - 1) * ${query.pageSize})
+      ) AS page_products ON TRUE
+    `);
+    // LEFT JOIN preserves pagination metadata even when no products match.
+    const total = Number(rows[0].__total);
+    const page = Number(rows[0].__page);
+    const products = rows.flatMap(({ __total, __page, ...product }) => product.id === null ? [] : [product]);
+    return Response.json({ products, total, page, totalPages: Math.ceil(total / query.pageSize), pageSize: query.pageSize });
   } catch (error) {
     return handleError(error);
   }
