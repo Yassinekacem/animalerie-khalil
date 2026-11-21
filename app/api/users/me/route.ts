@@ -3,12 +3,15 @@ import { z } from "zod";
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AuthError, authError, authJson, publicUserSelect, requireUser } from "@/lib/auth";
+import { isValidLocation } from "@/lib/tunisia-locations";
 
 const select = { ...publicUserSelect, sexe: true, updatedAt: true } as const;
 const schema = z.strictObject({
   name: z.string().trim().min(2, "Le nom doit contenir au moins deux caractères.").max(200).optional(),
   email: z.string().trim().toLowerCase().email("Adresse e-mail invalide.").max(254).optional(),
   phone: z.string().trim().max(32).nullable().transform(value => value || null).optional(),
+  gouvernorat: z.string().trim().max(100).nullable().transform(value => value || null).optional(),
+  ville: z.string().trim().max(100).nullable().transform(value => value || null).optional(),
   sexe: z.enum(["HOMME", "FEMME"]).nullable().optional(),
   image: z.string().trim().url("URL de photo invalide.").max(2048).refine(value => {
     try {
@@ -19,7 +22,7 @@ const schema = z.strictObject({
     } catch { return false; }
   }, "La photo doit provenir du compte Cloudinary configuré.").nullable().optional(),
   updatedAt: z.iso.datetime(),
-}).refine(fields => [fields.name, fields.email, fields.phone, fields.sexe, fields.image].some(value => value !== undefined), {
+}).refine(fields => [fields.name, fields.email, fields.phone, fields.gouvernorat, fields.ville, fields.sexe, fields.image].some(value => value !== undefined), {
   message: "Indiquez au moins un champ à modifier.",
 });
 
@@ -37,6 +40,16 @@ export async function PATCH(request: Request) {
   try {
     const user = await requireUser(request);
     const { updatedAt, ...data } = schema.parse(await request.json());
+    if (data.gouvernorat !== undefined || data.ville !== undefined) {
+      const gouvernorat = data.gouvernorat !== undefined ? data.gouvernorat : user.gouvernorat;
+      const ville = data.ville !== undefined ? data.ville : user.ville;
+      if ((gouvernorat || ville) && (!gouvernorat || !ville || !isValidLocation(gouvernorat, ville))) {
+        throw new AuthError("Sélectionnez un gouvernorat tunisien et une ville correspondante, ou effacez les deux champs.", 400);
+      }
+      // Écrire la paire validée, même lors d'une mise à jour partielle.
+      data.gouvernorat = gouvernorat;
+      data.ville = ville;
+    }
     const where = { id: user.id, isActif: true, updatedAt: new Date(updatedAt) };
     // Serialize the email uniqueness check with the update only when needed.
     const profile = data.email !== undefined ? await prisma.$transaction(async tx => {

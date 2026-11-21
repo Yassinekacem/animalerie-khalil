@@ -37,14 +37,11 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser(request);
     const { productId } = productSchema.parse(await readAuthBody(request));
-    const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
-    if (!product) return authJson({ error: "Produit introuvable." }, 404);
     const wishlist = await prisma.wishlist.create({
       data: { userId: user.id, productId },
       select: { product: true },
     });
-    const [ratedProduct] = await withReviewStats([wishlist.product]);
-    return authJson({ message: "Produit ajouté aux favoris.", product: ratedProduct }, 201);
+    return authJson({ message: "Produit ajouté aux favoris.", product: wishlist.product }, 201);
   } catch (error) { return handleError(error); }
 }
 

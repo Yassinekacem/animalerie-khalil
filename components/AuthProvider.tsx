@@ -8,9 +8,11 @@ export type AuthUser = {
   email: string;
   role: "CLIENT" | "ADMIN";
   phone: string | null;
+  gouvernorat: string | null;
+  ville: string | null;
   image: string | null;
 };
-type Registration = { name: string; email: string; password: string; phone: string | null; sexe: "HOMME" | "FEMME"; image?: string | null; acceptTerms: true };
+type Registration = { name: string; email: string; password: string; phone: string | null; gouvernorat?: string | null; ville?: string | null; sexe: "HOMME" | "FEMME"; image?: string | null; acceptTerms: true };
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;

@@ -6,11 +6,14 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Camera, Loader2, Mail, Phone, Save, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { accountButton, accountInput, accountRequest } from "@/components/AccountArea";
+import LocationSelects from "@/components/LocationSelects";
 
 type Profile = {
   name: string;
   email: string;
   phone: string | null;
+  gouvernorat: string | null;
+  ville: string | null;
   image: string | null;
   sexe: "HOMME" | "FEMME" | null;
   updatedAt: string;
@@ -71,6 +74,8 @@ function ProfileForm({ profile, onReload }: { profile: Profile; onReload: () => 
     ...(form.email.trim().toLowerCase() !== savedProfile.email ? { email: form.email.trim().toLowerCase() } : {}),
     ...((form.phone?.trim() || null) !== savedProfile.phone ? { phone: form.phone?.trim() || null } : {}),
     ...(form.sexe !== savedProfile.sexe ? { sexe: form.sexe } : {}),
+    ...(form.gouvernorat !== savedProfile.gouvernorat || form.ville !== savedProfile.ville
+      ? { gouvernorat: form.gouvernorat, ville: form.ville } : {}),
   };
   const hasChanges = Object.keys(changes).length > 0;
 
@@ -224,6 +229,11 @@ function ProfileForm({ profile, onReload }: { profile: Profile; onReload: () => 
                 <option value="">Non renseigné</option><option value="HOMME">Homme</option><option value="FEMME">Femme</option>
               </select>
             </label>
+            <LocationSelects gouvernorat={form.gouvernorat ?? ""} ville={form.ville ?? ""} inputClass={accountInput}
+              onChange={location => {
+                setForm(current => ({ ...current, gouvernorat: location.gouvernorat || null, ville: location.ville || null }));
+                setSuccess("");
+              }} />
           </fieldset>
 
           {error && <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">

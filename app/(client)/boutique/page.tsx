@@ -4,6 +4,7 @@ import { useToast } from "@/components/ToastProvider";
 
 import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { motion, type Variants } from "framer-motion";
 import SidebarFilter from "@/components/SidebarFilter";
 import ProductCard, { ProductCardSkeleton, type Product } from "@/components/ProductCard";
 import { animals, categories, type Animal } from "@/lib/catalogue";
@@ -24,6 +25,57 @@ import {
 /* ============================================================
    Constantes
    ============================================================ */
+
+const containerVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.13,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const wordVariants: Variants = {
+  hidden: {
+    pathLength: 0,
+    opacity: 0,
+  },
+  visible: {
+    pathLength: 1,
+    opacity: 1,
+    transition: {
+      pathLength: {
+        duration: 1.5,
+        ease: "easeOut",
+        delay: 0.2,
+      },
+      opacity: {
+        duration: 0.3,
+        delay: 0.2,
+      },
+    },
+  },
+};
+
+const accentWordVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 20,
+    filter: "blur(10px)",
+    textShadow: "0px 0px 0px rgba(101, 217, 0, 0)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    textShadow: "0px 0px 20px rgba(101, 217, 0, 0.3)",
+    transition: {
+      duration: 0.8,
+      ease: "easeOut",
+    },
+  },
+};
 
 const allCategories = Array.from(
   new Map(Object.values(categories).flat().map(item => [item.id, item])).values()
@@ -132,6 +184,7 @@ function Catalogue() {
   const minPrice = searchParams.get("minPrice") ?? "";
   const maxPrice = searchParams.get("maxPrice") ?? "";
   const promotion = searchParams.get("promotion") === "true";
+  const availability = searchParams.get("availability") ?? "";
   const sort = searchParams.get("sort") || "newest";
 
   const [showFilters, setShowFilters] = useState(false);
@@ -201,11 +254,22 @@ function Catalogue() {
   const [listLoading, setListLoading] = useState(false);
 
   const listController = useRef<AbortController | null>(null);
+  const productListRef = useRef<HTMLDivElement | null>(null);
+  const pendingPageScroll = useRef(false);
+
+  useEffect(() => {
+    if (!pendingPageScroll.current) return;
+    pendingPageScroll.current = false;
+    if (!result.error) {
+      productListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [result]);
 
   /* ---- URL helpers ---- */
 
   const updateUrl = useCallback(
     (changes: Record<string, string>, resetPage = true, replace = false) => {
+      pendingPageScroll.current = !resetPage && Boolean(changes.page) && Number(changes.page) !== result.page;
       const next = new URLSearchParams(window.location.search);
       for (const [key, value] of Object.entries(changes)) {
         if (value.trim()) next.set(key, value);
@@ -217,13 +281,14 @@ function Catalogue() {
       if (replace) router.replace(href, { scroll: false });
       else router.push(href, { scroll: false });
     },
-    [pathname, router]
+    [pathname, router, result.page]
   );
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
     for (const key of [
       "q",
+      "availability",
       "targetAnimal",
       "category",
       "brand",
@@ -384,6 +449,7 @@ function Catalogue() {
         minPrice: "",
         maxPrice: "",
         promotion: "",
+        availability: "",
         sort: "",
         page: "",
       },
@@ -391,11 +457,11 @@ function Catalogue() {
     );
   }, [updateUrl]);
 
-  const addToCart = useCallback((product: Product) => {
-    const added = addItem(product);
+  const addToCart = useCallback(async (product: Product) => {
+    const added = await addItem(product);
     if (added) toast(`${product.name} ajouté au panier.`);
     setCartMessage({
-      text: added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
+      text: added ? "" : "Ajout impossible : produit indisponible, quantité dépassée ou stockage du navigateur inaccessible.",
       error: !added,
     });
   }, [addItem, toast]);
@@ -423,12 +489,14 @@ function Catalogue() {
       minPrice={minPrice}
       maxPrice={maxPrice}
       promotion={promotion}
+      availability={availability}
       onAnimalChange={value => updateUrl({ targetAnimal: value, category: "" })}
       onCategoryChange={value => updateUrl({ category: value })}
       onBrandChange={value => updateUrl({ brand: value })}
       onMinPriceChange={value => updateUrl({ minPrice: value })}
       onMaxPriceChange={value => updateUrl({ maxPrice: value })}
       onPromotionChange={value => updateUrl({ promotion: value ? "true" : "" })}
+      onAvailabilityChange={value => updateUrl({ availability: value })}
       onReset={resetFilters}
       onRetryBrands={() => setRetry(v => v + 1)}
     />
@@ -440,17 +508,37 @@ function Catalogue() {
 
   return (
     <main className="min-h-screen bg-[#F7F8F6]"> 
-    <section className="bg-[#010101] px-4 py-12 text-white sm:py-16">
-        <div className="mx-auto max-w-7xl">
+    <section className="relative overflow-hidden bg-[#010101] px-4 py-12 text-white sm:py-16">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none overflow-hidden text-[#65D900]/[0.12]">
+          {[
+          "left-3 top-5 h-10 w-10 -rotate-[24deg] sm:left-[3%] sm:h-14 sm:w-14",
+          "left-[42%] top-4 h-8 w-8 rotate-[18deg] sm:left-[40%] sm:top-8 sm:h-12 sm:w-12",
+          "right-5 top-7 h-16 w-16 rotate-[22deg] sm:right-[8%] sm:h-24 sm:w-24",
+          "-right-4 top-[42%] h-20 w-20 -rotate-[25deg] sm:right-5 sm:h-28 sm:w-28",
+          "bottom-5 left-4 h-14 w-14 -rotate-[18deg] sm:left-[5%] sm:h-20 sm:w-20",
+          "bottom-6 left-[46%] hidden h-12 w-12 rotate-[30deg] lg:block",
+          "bottom-3 right-[8%] h-10 w-10 rotate-[18deg] sm:bottom-6 sm:h-16 sm:w-16",
+        ].map((position, index) => (
+            <PawPrint key={index} focusable="false" fill="currentColor" strokeWidth={0} className={`absolute ${position}`} />
+          ))}
+        </div>
+        <div className="relative z-10 mx-auto max-w-7xl">
   
 
           <div className="max-w-2xl">
    
 
-            <h1 className="text-3xl font-extrabold leading-tight sm:text-5xl">
-              Tout pour vos
-              <span className="text-[#65D900]"> compagnons</span>
-            </h1>
+            <motion.h1
+              className="text-3xl font-extrabold leading-tight sm:text-5xl"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.span variants={wordVariants} className="inline-block">Tout</motion.span>{" "}
+              <motion.span variants={wordVariants} className="inline-block">pour</motion.span>{" "}
+              <motion.span variants={wordVariants} className="inline-block">vos</motion.span>{" "}
+              <motion.span variants={accentWordVariants} className="inline-block text-[#65D900]">compagnons</motion.span>
+            </motion.h1>
 
             <p className="mt-4 max-w-lg text-sm leading-6 text-gray-400 sm:text-base">
               Découvrez notre sélection d'alimentation, accessoires
@@ -567,7 +655,7 @@ function Catalogue() {
             </div>
 
             {cartMessage.text && <p role={cartMessage.error ? "alert" : "status"} className={`mb-4 rounded-xl border px-4 py-3 text-sm ${cartMessage.error ? "border-red-200 bg-red-50 text-red-700" : "border-gray-200 bg-white text-gray-700"}`}>{cartMessage.text}</p>}
-            <div aria-busy={listLoading}>
+            <div ref={productListRef} aria-busy={listLoading} className="scroll-mt-28">
               {/* 1. Skeleton : uniquement au TOUT premier chargement */}
               {isFirstLoad ? (
                 <ProductGridSkeleton count={12} />

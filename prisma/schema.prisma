@@ -23,6 +23,8 @@ model User {
   email     String   @unique
   password  String
   phone     String?
+  gouvernorat String?
+  ville       String?
   sexe      Sexe?
   image     String?
   role      Role     @default(CLIENT)
@@ -41,6 +43,12 @@ enum Animal {
   poissons
 }
 
+enum ProductAvailability {
+  DISPONIBLE
+  EN_ARRIVAGE
+  RUPTURE_STOCK
+}
+
 // Chaque conditionnement vendu correspond a un produit independant.
 model Product {
   id              Int      @id @default(autoincrement())
@@ -53,6 +61,7 @@ model Product {
   image           String   @default("")
   price           Decimal  @db.Decimal(10, 3)
   promoPrice      Decimal? @db.Decimal(10, 3)
+  availability    ProductAvailability @default(DISPONIBLE)
   characteristics Json     @default("{}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -101,14 +110,22 @@ enum OrderStatus {
 model Order {
   id              Int         @id @default(autoincrement())
   reference       String      @unique
+  // Only the hash is stored; the browser's retry key remains private.
+  idempotencyKeyHash String?   @unique
+  requestHash     String?
   userId          Int?
   user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   customerName    String
   customerPhone   String
   deliveryAddress String
+  // Nullable pour les commandes créées avant l'ajout de la localisation.
+  // L'API exige ces deux champs pour toute nouvelle commande.
+  gouvernorat     String?
+  ville           String?
   customerEmail   String?
   note            String?
   status          OrderStatus @default(EN_ATTENTE)
+  adminSeenAt     DateTime?
   subtotal        Decimal     @db.Decimal(18, 3)
   deliveryFee     Decimal     @db.Decimal(18, 3)
   total           Decimal     @db.Decimal(18, 3)
@@ -119,6 +136,7 @@ model Order {
   @@index([userId])
   @@index([createdAt, id])
   @@index([status, createdAt, id])
+  @@index([adminSeenAt])
 }
 
 model OrderItem {

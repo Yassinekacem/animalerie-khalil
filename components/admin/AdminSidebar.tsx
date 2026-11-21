@@ -10,6 +10,7 @@ import {
   Users,
   Package,
   ShoppingBag,
+  MessageSquare,
   ChartNoAxesCombined,
   LogOut, 
   LayoutDashboard ,
@@ -31,6 +32,7 @@ const adminSections = [
       { name: "Utilisateurs", href: "/admin/utilisateurs", icon: Users },
       { name: "Produits", href: "/admin/produits", icon: Package },
       { name: "Commandes", href: "/admin/commandes", icon: ShoppingBag },
+      { name: "Gestion des avis", href: "/admin/avis", icon: MessageSquare },
     ],
   },
   {
@@ -52,6 +54,43 @@ export default function AdminSidebar() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const leaving = useRef(false);
+  const [notifications, setNotifications] = useState({ userId: 0, count: 0 });
+  useEffect(() => {
+    if (loading || sessionError || user?.role !== "ADMIN") return;
+    const userId = user.id;
+    let controller: AbortController | undefined;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      try {
+        const response = await fetch("/api/orders?unseen=true", { cache: "no-store", signal: request.signal });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!request.signal.aborted && Number.isSafeInteger(data.count) && data.count >= 0) {
+          setNotifications({ userId, count: data.count });
+        }
+      } catch {
+        // Conserver le dernier compteur connu ; le prochain passage réessaiera.
+      }
+    };
+    const update = () => { void refresh(); };
+    update();
+    const timer = window.setInterval(update, 15_000);
+    window.addEventListener("orders-seen", update);
+    window.addEventListener("focus", update);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      controller?.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("orders-seen", update);
+      window.removeEventListener("focus", update);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, [loading, sessionError, user?.id, user?.role]);
+  const unseenCount = !loading && !sessionError && user?.role === "ADMIN" && notifications.userId === user.id
+    ? notifications.count : 0;
   useEffect(() => {
     if (!loading && !sessionError && (!user || user.role !== "ADMIN")) {
       router.replace(user ? "/" : "/connexion");
@@ -195,6 +234,12 @@ export default function AdminSidebar() {
                         }`}
                       />
                       <span>{link.name}</span>
+                      {link.href === "/admin/commandes" && unseenCount > 0 && (
+                        <span role="status" aria-label={`${unseenCount} nouvelle(s) commande(s)`}
+                          className="ml-auto inline-flex min-w-6 shrink-0 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
+                          {unseenCount}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

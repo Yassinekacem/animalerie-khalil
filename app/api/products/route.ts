@@ -1,4 +1,4 @@
-import { Prisma, type Product as DatabaseProduct } from "@/app/generated/prisma/client";
+import { ProductAvailability, Prisma, type Product as DatabaseProduct } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { AuthError, authError, requireAdmin } from "@/lib/auth";
@@ -23,6 +23,7 @@ const fields = {
   name: z.string().trim().min(1, "Le nom est obligatoire."),
   description: z.string().trim().min(1, "La description est obligatoire."),
   brand: z.string().trim().min(1).nullable(),
+  availability: z.enum(ProductAvailability).default("DISPONIBLE"),
   targetAnimal: animalSchema,
   category: z.string().trim().min(1),
   image: z.string(),
@@ -75,6 +76,7 @@ const productSchema = z.strictObject({
 
 const querySchema = z.object({
   q: z.string().trim().optional(),
+  availability: z.enum(ProductAvailability).optional(),
   targetAnimal: animalSchema.optional(),
   category: z.string().trim().min(1).optional(),
   excludeId: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(2147483647)).optional(),
@@ -100,7 +102,7 @@ const querySchema = z.object({
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
-    for (const key of ["q", "targetAnimal", "category", "excludeId", "promotion", "brand", "minPrice", "maxPrice", "sort", "brandsOnly", "page", "pageSize"]) {
+    for (const key of ["q", "availability", "targetAnimal", "category", "excludeId", "promotion", "brand", "minPrice", "maxPrice", "sort", "brandsOnly", "page", "pageSize"]) {
       if (params.getAll(key).length > 1) {
         return Response.json({ error: "Paramètre répété : " + key }, { status: 400 });
       }
@@ -117,6 +119,7 @@ export async function GET(request: Request) {
     const conditions: Prisma.Sql[] = [];
     if (query.q) conditions.push(Prisma.sql`strpos(lower("name"), lower(${query.q}::text)) > 0`);
     if (query.targetAnimal) conditions.push(Prisma.sql`"targetAnimal"::text = ${query.targetAnimal}`);
+    if (query.availability) conditions.push(Prisma.sql`"availability"::text = ${query.availability}`);
     if (query.category) conditions.push(Prisma.sql`"category" = ${query.category}`);
     if (query.excludeId !== undefined) conditions.push(Prisma.sql`"Product"."id" <> ${query.excludeId}`);
     if (query.brand) conditions.push(Prisma.sql`"brand" = ${query.brand}`);

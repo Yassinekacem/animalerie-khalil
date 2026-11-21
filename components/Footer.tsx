@@ -64,7 +64,7 @@ export default function Footer() {
               Accueil
             </Link>
 
-            <Link href="/products" className="hover:text-[#65D900]">
+            <Link href="/boutique" className="hover:text-[#65D900]">
               Boutique
             </Link>
 
@@ -116,7 +116,7 @@ export default function Footer() {
               <span className="block font-semibold text-white">
                 Téléphone
               </span>
-              99 434 597
+              96 766 945
             </p>
 
             <p>

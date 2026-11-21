@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { formatPrice } from "@/lib/catalogue";
+import { type ProductAvailability, formatPrice } from "@/lib/catalogue";
 
 export type CartProduct = {
   id: number;
@@ -10,8 +10,110 @@ export type CartProduct = {
   image: string;
   price: string;
   promoPrice: string | null;
+  availability: ProductAvailability;
 };
 export type CartItem = CartProduct & { quantity: number };
+
+export type GuestReceipt = {
+  reference: string;
+  createdAt: string;
+  items: { productName: string; quantity: number; unitPrice: string }[];
+  subtotal: string;
+  deliveryFee: string;
+  total: string;
+  shop: { name: string; phone: string };
+};
+
+const RECEIPTS_KEY = "animalerie-khalil:guest-receipts:v1";
+const RECEIPTS_EVENT = "animalerie-khalil:guest-receipts-change";
+
+// Whitelist the receipt fields, both from API responses and from browser storage.
+// Never persist the full order (customer data, database IDs or idempotency keys).
+export function createGuestReceipt(value: unknown): GuestReceipt | null {
+  if (!value || typeof value !== "object") return null;
+  const order = value as Record<string, unknown>;
+  const amount = (price: unknown): price is string => typeof price === "string" && /^\d{1,15}(?:\.\d{1,3})?$/.test(price);
+  if (typeof order.reference !== "string" || !/^AK-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(order.reference) ||
+    typeof order.createdAt !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(order.createdAt) || !Number.isFinite(Date.parse(order.createdAt)) ||
+    !amount(order.subtotal) || !amount(order.deliveryFee) || !amount(order.total) ||
+    !Array.isArray(order.items) || order.items.length < 1 || order.items.length > 100) return null;
+  const items: GuestReceipt["items"] = [];
+  for (const value of order.items) {
+    if (!value || typeof value !== "object") return null;
+    const item = value as Record<string, unknown>;
+    if (typeof item.productName !== "string" || !item.productName.trim() || item.productName.length > 1000 ||
+      typeof item.quantity !== "number" || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 9999 || !amount(item.unitPrice)) return null;
+    items.push({ productName: item.productName, quantity: item.quantity, unitPrice: item.unitPrice });
+  }
+  const millimes = (price: string) => {
+    const [dinars, fraction = ""] = price.split(".");
+    return BigInt(dinars) * BigInt(1000) + BigInt(fraction.padEnd(3, "0"));
+  };
+  const subtotal = items.reduce((sum, item) => sum + millimes(item.unitPrice) * BigInt(item.quantity), BigInt(0));
+  if (subtotal !== millimes(order.subtotal) || subtotal + millimes(order.deliveryFee) !== millimes(order.total)) return null;
+  return {
+    reference: order.reference, createdAt: order.createdAt, items,
+    subtotal: order.subtotal, deliveryFee: order.deliveryFee, total: order.total,
+    shop: { name: "Animalerie Khalil", phone: "+216 96 766 945" },
+  };
+}
+
+function readGuestReceipts(snapshot: string | null): GuestReceipt[] {
+  try {
+    const values: unknown = JSON.parse(snapshot ?? "[]");
+    if (!Array.isArray(values)) return [];
+    const receipts = new Map<string, GuestReceipt>();
+    for (const value of values) {
+      const receipt = createGuestReceipt(value);
+      if (receipt && !receipts.has(receipt.reference)) receipts.set(receipt.reference, receipt);
+      if (receipts.size === 10) break;
+    }
+    return [...receipts.values()];
+  } catch { return []; }
+}
+
+export function saveGuestReceipt(value: GuestReceipt): boolean {
+  const receipt = createGuestReceipt(value);
+  if (!receipt) return false;
+  try {
+    const receipts = readGuestReceipts(window.localStorage.getItem(RECEIPTS_KEY));
+    window.localStorage.setItem(RECEIPTS_KEY, JSON.stringify([
+      receipt, ...receipts.filter(item => item.reference !== receipt.reference),
+    ].slice(0, 10)));
+    window.dispatchEvent(new Event(RECEIPTS_EVENT));
+    return true;
+  } catch { return false; }
+}
+
+function subscribeGuestReceipts(onChange: () => void) {
+  const onStorage = (event: StorageEvent) => { if (event.key === RECEIPTS_KEY || event.key === null) onChange(); };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(RECEIPTS_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(RECEIPTS_EVENT, onChange);
+  };
+}
+
+export function useGuestReceipts(enabled: boolean) {
+  const snapshot = useSyncExternalStore(
+    enabled ? subscribeGuestReceipts : () => () => {},
+    useCallback(() => enabled ? getSnapshot(RECEIPTS_KEY) : null, [enabled]),
+    getServerSnapshot,
+  );
+  const receipts = useMemo(() => readGuestReceipts(snapshot), [snapshot]);
+  const removeReceipt = (reference: string) => {
+    if (!enabled) return false;
+    try {
+      const remaining = readGuestReceipts(window.localStorage.getItem(RECEIPTS_KEY)).filter(receipt => receipt.reference !== reference);
+      if (remaining.length) window.localStorage.setItem(RECEIPTS_KEY, JSON.stringify(remaining));
+      else window.localStorage.removeItem(RECEIPTS_KEY);
+      window.dispatchEvent(new Event(RECEIPTS_EVENT));
+      return true;
+    } catch { return false; }
+  };
+  return { receipts, removeReceipt };
+}
 
 const CHANGE_EVENT = "animalerie-khalil:cart-change";
 // Technical input limit, independent of product stock.
@@ -40,8 +142,9 @@ function readItems(snapshot: string | null): CartItem[] {
     for (const value of data) {
       if (!validProduct(value) || !("quantity" in value) || typeof value.quantity !== "number" || !validQuantity(value.quantity)) continue;
       const { id, name, image, price, promoPrice, quantity } = value;
+      const availability = value.availability;
       const combined = Math.min(MAX_CART_QUANTITY, (items.get(id)?.quantity ?? 0) + quantity);
-      items.set(id, { id, name, image, price, promoPrice, quantity: combined });
+      items.set(id, { id, name, image, price, promoPrice, availability, quantity: combined });
     }
     const result = [...items.values()];
     return Number.isSafeInteger(result.reduce((sum, item) => sum + getUnitPriceMillimes(item) * item.quantity, 0)) ? result : [];
@@ -105,14 +208,22 @@ function changeCart(storageKey: string | null, update: (items: CartItem[]) => Ca
   }
 }
 
-function addItem(storageKey: string | null, product: CartProduct, quantity = 1) {
-  if (!validProduct(product) || !validQuantity(quantity)) return false;
+async function addItem(storageKey: string | null, product: CartProduct, quantity = 1) {
+  if (!validProduct(product) || !validQuantity(quantity) || product.availability !== "DISPONIBLE") return false;
+  try {
+    const response = await fetch(`/api/products/${product.id}`, { cache: "no-store" });
+    const current: unknown = await response.json();
+    if (!response.ok || !validProduct(current) || current.id !== product.id || current.availability !== "DISPONIBLE") return false;
+    product = current;
+  } catch {
+    return false;
+  }
   return changeCart(storageKey, items => {
     const existing = items.find(item => item.id === product.id);
     const combined = (existing?.quantity ?? 0) + quantity;
     if (!validQuantity(combined)) return null;
-    const { id, name, image, price, promoPrice } = product;
-    const item = { id, name, image, price, promoPrice, quantity: combined };
+    const { id, name, image, price, promoPrice, availability } = product;
+    const item = { id, name, image, price, promoPrice, availability, quantity: combined };
     return existing ? items.map(current => current.id === id ? item : current) : [...items, item];
   });
 }

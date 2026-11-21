@@ -1,6 +1,7 @@
 "use client";
 
 import { useToast } from "@/components/ToastProvider";
+import { usePathname } from "next/navigation";
 
 import {
   memo,
@@ -35,11 +36,14 @@ const statuses = {
 type Status = keyof typeof statuses;
 
 type Order = {
+  adminSeenAt: string | null;
   id: number;
   reference: string;
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
+  gouvernorat: string | null;
+  ville: string | null;
   customerEmail: string | null;
   note: string | null;
   createdAt: string;
@@ -369,6 +373,43 @@ export default function OrdersPage() {
   });
   const [listLoading, setListLoading] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const update = () => {
+      if (pathname === "/admin/commandes" && document.visibilityState === "visible") {
+        setReloadToken(value => value + 1);
+      }
+    };
+    const timer = window.setInterval(update, 15_000);
+    document.addEventListener("visibilitychange", update);
+    window.addEventListener("focus", update);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", update);
+      window.removeEventListener("focus", update);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (pathname !== "/admin/commandes" || document.visibilityState !== "visible") return;
+    const ids = list.data?.orders.filter(order => !order.adminSeenAt).map(order => order.id) ?? [];
+    if (!ids.length) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/orders", {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }), signal: controller.signal,
+        });
+        await readResponse<{ count: number }>(response);
+        if (!controller.signal.aborted) window.dispatchEvent(new Event("orders-seen"));
+      } catch (error) {
+        if (!controller.signal.aborted) setError(errorMessage(error));
+      }
+    })();
+    return () => controller.abort();
+  }, [list.data, pathname]);
 
   // Cache mémoire des commandes (par id) — détail instantané / préchargement
   const orderCache = useRef<Map<number, OrderDetail>>(new Map());
@@ -974,6 +1015,14 @@ export default function OrdersPage() {
                     <dt className="text-gray-500">Adresse de livraison</dt>
                     <dd className="mt-1 break-words">{selected.deliveryAddress}</dd>
                   </div>
+                  {selected.gouvernorat && <div>
+                    <dt className="text-gray-500">Gouvernorat</dt>
+                    <dd className="mt-1">{selected.gouvernorat}</dd>
+                  </div>}
+                  {selected.ville && <div>
+                    <dt className="text-gray-500">Ville</dt>
+                    <dd className="mt-1">{selected.ville}</dd>
+                  </div>}
                 </dl>
               </section>
 

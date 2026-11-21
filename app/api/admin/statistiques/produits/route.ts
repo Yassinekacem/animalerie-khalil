@@ -1,17 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { AuthError, authError, authJson, requireAdmin } from "@/lib/auth";
-import { categories, type Animal } from "@/lib/catalogue";
+import { availabilityOptions, categories, type Animal, type ProductAvailability } from "@/lib/catalogue";
+import { connection } from "next/server";
 
 const animalLabels: Record<Animal, string> = {
   chien: "Chiens", chat: "Chats", oiseaux: "Oiseaux", poissons: "Poissons",
 };
 
 export async function GET(request: Request) {
+  await connection();
   try {
     await requireAdmin(request);
     const [groups, ratings] = await Promise.all([
       prisma.product.groupBy({
-        by: ["targetAnimal", "category"],
+        by: ["targetAnimal", "category", "availability"],
         _count: { _all: true },
       }),
       prisma.review.groupBy({
@@ -29,15 +31,27 @@ export async function GET(request: Request) {
     }) : [];
     const names = new Map(products.map(product => [product.id, product.name]));
     const animals = Object.keys(animalLabels) as Animal[];
+    const availabilityCounts = new Map<ProductAvailability, number>();
+    let totalProducts = 0;
+    for (const group of groups) {
+      availabilityCounts.set(group.availability, (availabilityCounts.get(group.availability) ?? 0) + group._count._all);
+      totalProducts += group._count._all;
+    }
 
     return authJson({
+      repartitionDisponibilite: (Object.keys(availabilityOptions) as ProductAvailability[]).map(status => {
+        const count = availabilityCounts.get(status) ?? 0;
+        return { status, name: availabilityOptions[status].label, count, percentage: totalProducts ? Number((count / totalProducts * 100).toFixed(2)) : 0 };
+      }),
       produitsParAnimal: animals.map(animal => ({
         name: animalLabels[animal],
         count: groups.filter(group => group.targetAnimal === animal).reduce((sum, group) => sum + group._count._all, 0),
       })),
       repartitionCategories: Object.fromEntries(animals.map(animal => {
-        const counts = new Map(groups.filter(group => group.targetAnimal === animal)
-          .map(group => [group.category, group._count._all]));
+        const counts = new Map<string, number>();
+        for (const group of groups.filter(group => group.targetAnimal === animal)) {
+          counts.set(group.category, (counts.get(group.category) ?? 0) + group._count._all);
+        }
         const knownIds = new Set(categories[animal].map(category => category.id));
         return [animal, [
           ...categories[animal].map(category => ({ name: category.name, count: counts.get(category.id) ?? 0 })),

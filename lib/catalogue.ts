@@ -1,3 +1,12 @@
+import type { ProductAvailability } from "@/app/generated/prisma/enums";
+
+export type { ProductAvailability };
+export const availabilityOptions: Record<ProductAvailability, { label: string; className: string }> = {
+  DISPONIBLE: { label: "Disponible", className: "bg-green-100 text-green-800" },
+  EN_ARRIVAGE: { label: "En arrivage", className: "bg-amber-100 text-amber-800" },
+  RUPTURE_STOCK: { label: "Rupture de stock", className: "bg-red-100 text-red-700" },
+};
+
 export type Animal = "chien" | "chat" | "oiseaux" | "poissons";
 
 export const animals: Record<Animal, string> = {

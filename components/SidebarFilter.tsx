@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type PointerEvent } from "react";
+import { availabilityOptions } from "@/lib/catalogue";
 import { Bird, Cat, Dog, Fish, LoaderCircle, PawPrint, RefreshCw, SlidersHorizontal, Tag, type LucideIcon } from "lucide-react";
 
 type Option = { id: string; name: string };
@@ -21,12 +22,14 @@ type SidebarFilterProps = {
   minPrice: string;
   maxPrice: string;
   promotion: boolean;
+  availability: string;
   onAnimalChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onBrandChange: (value: string) => void;
   onMinPriceChange: (value: string) => void;
   onMaxPriceChange: (value: string) => void;
   onPromotionChange: (value: boolean) => void;
+  onAvailabilityChange: (value: string) => void;
   onReset: () => void;
   onRetryBrands: () => void;
 };
@@ -247,7 +250,7 @@ export default function SidebarFilter(props: SidebarFilterProps) {
   const id = useId();
   const hasActiveFilters =
     props.promotion ||
-    [props.animal, props.category, props.brand, props.minPrice, props.maxPrice].some(
+    [props.animal, props.category, props.brand, props.minPrice, props.maxPrice, props.availability].some(
       value => value.trim() !== "",
     );
   const animalOptions = [
@@ -349,6 +352,19 @@ export default function SidebarFilter(props: SidebarFilterProps) {
               </button>
             </div>
           ) : null}
+        </div>
+
+        <div className="border-t border-gray-100 pt-4">
+          <RadioFilter
+            name={`${id}-availability`}
+            title="Disponibilité"
+            value={props.availability}
+            options={[
+              { id: "", name: "Tous" },
+              ...Object.entries(availabilityOptions).map(([id, status]) => ({ id, name: status.label })),
+            ]}
+            onChange={props.onAvailabilityChange}
+          />
         </div>
 
         <div className="border-t border-gray-100 pt-4">

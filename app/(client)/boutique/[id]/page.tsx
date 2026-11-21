@@ -4,7 +4,7 @@ import { useToast } from "@/components/ToastProvider";
 
 import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import ProductImageZoom from "@/components/ProductImageZoom";
-import ProductCard, { type Product as CardProduct } from "@/components/ProductCard";
+import ProductCard, { AvailabilityBadge, type Product as CardProduct } from "@/components/ProductCard";
 import { Stars } from "@/components/ProductRating";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -45,6 +45,7 @@ type Product = {
   image: string;
   price: string;
   promoPrice: string | null;
+  availability: CardProduct["availability"];
   characteristics: Record<string, JsonValue>;
 };
 type Result = { product: Product } | { error: string; notFound: boolean };
@@ -58,6 +59,7 @@ function isProduct(value: unknown): value is Product {
   const product = value as Record<string, unknown>;
   return (
     Number.isInteger(product.id) &&
+    ["DISPONIBLE", "EN_ARRIVAGE", "RUPTURE_STOCK"].includes(String(product.availability)) &&
     ["name", "description", "category", "image"].every(key => typeof product[key] === "string") &&
     (product.brand === null || typeof product.brand === "string") &&
     typeof product.targetAnimal === "string" &&
@@ -318,6 +320,7 @@ function ProductContent({ product }: { product: Product }) {
             </div>
           </dl>
 
+          <div className="mt-4"><AvailabilityBadge availability={product.availability} /></div>
           <div className="my-6 border-y border-gray-200 py-5">
             {hasPromo && (
               <p className="mb-1 text-sm text-gray-500">
@@ -388,11 +391,11 @@ function ProductContent({ product }: { product: Product }) {
             </div>
             <button
               type="button"
-              disabled={!cartReady || !validQuantity}
-              onClick={() => {
-                const added = addItem(product, quantityNumber);
+              disabled={!cartReady || !validQuantity || product.availability !== "DISPONIBLE"}
+              onClick={async () => {
+                const added = await addItem(product, quantityNumber);
                 if (added) toast(quantityNumber + " article(s) ajouté(s) au panier.");
-                setCartError(added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité totale ne dépasse pas 9 999.");
+                setCartError(added ? "" : "Ajout impossible : produit indisponible, quantité dépassée ou stockage du navigateur inaccessible.");
               }}
               className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-[#65D900] px-4 py-3.5 text-sm font-bold text-black transition hover:bg-[#55BD00] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#65D900] disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -559,11 +562,11 @@ function SimilarProducts({ product }: { product: Product }) {
     element.scrollBy({ left: direction * element.clientWidth, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   }
 
-  const addToCart = useCallback((item: CardProduct) => {
-    const added = addItem(item);
+  const addToCart = useCallback(async (item: CardProduct) => {
+    const added = await addItem(item);
     if (added) toast(`${item.name} ajouté au panier.`);
     setCartMessage({
-      text: added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
+      text: added ? "" : "Ajout impossible : produit indisponible, quantité dépassée ou stockage du navigateur inaccessible.",
       error: !added,
     });
   }, [addItem, toast]);
@@ -663,7 +666,7 @@ function ContactCard() {
         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#010101] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900]"
       >
         <Phone size={16} aria-hidden="true" className="text-[#65D900]" />
-        99 434 597
+        96 766 945
       </a>
     </aside>
   );

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useWishlist } from "@/components/WishlistProvider";
-import ProductRating, { type ReviewSummary } from "@/components/ProductRating";
-import { animals, categories as productCategories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
+import { AvailabilityBadge, type Product } from "@/components/ProductCard";
+import ProductRating from "@/components/ProductRating";
+import { animals, categories as productCategories, fallbackImage, formatPrice } from "@/lib/catalogue";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { 
@@ -51,15 +52,7 @@ const categories = [
   },
 ];
 
-type Product = ReviewSummary & {
-  id: number;
-  name: string;
-  targetAnimal: Animal;
-  category: string;
-  image: string;
-  price: string;
-  promoPrice: string | null;
-};
+
 
 const advantages = [
   {
@@ -209,7 +202,7 @@ function ProductCard({ product }: { product: Product }) {
 
         <button
           type="button"
-          onClick={() => void toggleFavorite(product.id)}
+          onClick={() => void toggleFavorite(product)}
           disabled={wishlistLoading || favoritePending}
           aria-label={favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
           aria-pressed={favorite}
@@ -242,6 +235,7 @@ function ProductCard({ product }: { product: Product }) {
           </Link>
         </h3>
 
+        <div className="mt-2"><AvailabilityBadge availability={product.availability} /></div>
         <ProductRating averageRating={product.averageRating} reviewCount={product.reviewCount} />
 
         {/* Prix : hauteur fixe, prix barré visible si promo */}
@@ -329,7 +323,7 @@ export default function HomePage() {
             >
               {/* Première ligne : "Parce qu'ils font partie de" */}
               <span className="block">
-                {["Parce", "qu'ils", "font", "partie", "de"].map((word) => (
+                {["Le bonheur", "de", "vos", "compagnons"].map((word) => (
                   <motion.span
                     key={word}
                     variants={wordVariants}
@@ -342,7 +336,7 @@ export default function HomePage() {
 
               {/* Deuxième ligne : "notre famille." en vert avec halo */}
               <span className="mt-2 block">
-                {["notre", "famille."].map((word) => (
+                {["commence", "ici."].map((word) => (
                   <motion.span
                     key={word}
                     variants={accentWordVariants}

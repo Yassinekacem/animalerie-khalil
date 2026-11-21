@@ -15,11 +15,11 @@ export default function FavoritesClient() {
   const { addItem, ready: cartReady } = useCart();
   const toast = useToast();
   const [cartMessage, setCartMessage] = useState({ text: "", error: false });
-  const addToCart = useCallback((product: Product) => {
-    const added = addItem(product);
+  const addToCart = useCallback(async (product: Product) => {
+    const added = await addItem(product);
     if (added) toast(`${product.name} ajouté au panier.`);
     setCartMessage({
-      text: added ? "" : "Impossible d’ajouter ce produit. Vérifiez que le stockage du navigateur est autorisé et que la quantité ne dépasse pas 9 999.",
+      text: added ? "" : "Ajout impossible : produit indisponible, quantité dépassée ou stockage du navigateur inaccessible.",
       error: !added,
     });
   }, [addItem, toast]);

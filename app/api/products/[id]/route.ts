@@ -1,4 +1,4 @@
-﻿import { Prisma } from "@/app/generated/prisma/client";
+﻿import { ProductAvailability, Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { AuthError, authError, requireAdmin } from "@/lib/auth";
@@ -23,6 +23,7 @@ const fields = {
   name: z.string().trim().min(1, "Le nom est obligatoire."),
   description: z.string().trim().min(1, "La description est obligatoire."),
   brand: z.string().trim().min(1).nullable(),
+  availability: z.enum(ProductAvailability).optional(),
   targetAnimal: animalSchema,
   category: z.string().trim().min(1),
   image: z.string(),

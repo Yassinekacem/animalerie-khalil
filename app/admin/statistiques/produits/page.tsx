@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChartColumn, Layers, Star } from "lucide-react";
+import { ChartColumn, Layers, PackageCheck, Star } from "lucide-react";
 import {
-  Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Cell, LabelList, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import type { Animal } from "@/lib/catalogue";
+import { availabilityOptions, type Animal, type ProductAvailability } from "@/lib/catalogue";
 
 const animalOptions: { value: Animal; label: string }[] = [
   { value: "chien", label: "Chiens" },
@@ -18,7 +18,13 @@ type Statistics = {
   produitsParAnimal: { name: string; count: number }[];
   repartitionCategories: Record<Animal, { name: string; count: number }[]>;
   topProduits: { id: number; name: string; rating: number; reviews: number }[];
+  repartitionDisponibilite: { status: ProductAvailability; name: string; count: number; percentage: number }[];
 };
+
+const availabilityColors: Record<ProductAvailability, string> = {
+  DISPONIBLE: "#65D900", EN_ARRIVAGE: "#f59e0b", RUPTURE_STOCK: "#ef4444",
+};
+const formatPercentage = (percentage: number) => `${percentage.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
 
 const tooltipStyle = {
   borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 13,
@@ -47,6 +53,13 @@ export default function ProductStatisticsPage() {
         const response = await fetch("/api/admin/statistiques/produits", { cache: "no-store", signal: controller.signal });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || "Impossible de charger les statistiques produits.");
+        if (!Array.isArray(payload.repartitionDisponibilite) || payload.repartitionDisponibilite.length !== 3 ||
+          !payload.repartitionDisponibilite.every((item: Statistics["repartitionDisponibilite"][number]) => item &&
+            Object.hasOwn(availabilityOptions, item.status) && Number.isSafeInteger(item.count) && item.count >= 0 &&
+            Number.isFinite(item.percentage) && item.percentage >= 0 && item.percentage <= 100) ||
+          new Set(payload.repartitionDisponibilite.map((item: Statistics["repartitionDisponibilite"][number]) => item.status)).size !== 3) {
+          throw new Error("La réponse des disponibilités est incorrecte.");
+        }
         if (!controller.signal.aborted) setResult({ key: retry, data: payload, error: "" });
       } catch (error) {
         if (!controller.signal.aborted) setResult({ key: retry, data: null, error: error instanceof TypeError ?
@@ -62,6 +75,8 @@ export default function ProductStatisticsPage() {
   const animalLabel = animalOptions.find(option => option.value === animal)!.label;
   const totalProducts = animalData.reduce((sum, item) => sum + item.count, 0);
   const categoryTotal = categoryData.reduce((sum, item) => sum + item.count, 0);
+  const availabilityData = (statistics?.repartitionDisponibilite ?? []).map(item => ({ ...item, color: availabilityColors[item.status] }));
+  const availabilityTotal = availabilityData.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 text-[#010101] sm:space-y-8">
@@ -144,6 +159,36 @@ export default function ProductStatisticsPage() {
           </div>
         </section>
       </div>
+
+      <section aria-labelledby="availability-title" className="min-w-0 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-5 sm:p-6">
+          <div><h2 id="availability-title" className="text-lg font-bold">Répartition par disponibilité</h2><p className="mt-1 text-sm text-gray-500">Tous les produits du catalogue, tous animaux confondus.</p></div>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#010101] text-[#65D900]"><PackageCheck size={20} aria-hidden="true" /></span>
+        </div>
+        <div className="grid min-w-0 items-center gap-6 p-5 sm:p-6 lg:grid-cols-2">
+          <div className="relative h-[300px] min-w-0" aria-busy={loading} role={statistics ? "img" : undefined}
+            aria-label={statistics ? `Disponibilité des ${availabilityTotal} produits : ${availabilityData.map(item => `${item.name}, ${item.count} produits, ${formatPercentage(item.percentage)}`).join(" ; ")}.` : undefined}>
+            {loading || error || availabilityTotal === 0 ? <ChartPlaceholder loading={loading} message={error ? "Graphique indisponible." : "Aucun produit dans le catalogue."} /> : <>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <PieChart accessibilityLayer>
+                  <Pie data={availabilityData} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius="65%" outerRadius="88%" paddingAngle={3} cornerRadius={5} stroke="none" isAnimationActive={false}>
+                    {availabilityData.map(item => <Cell key={item.status} fill={item.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value, name, item) => [`${value} produits · ${formatPercentage(item.payload.percentage)}`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><span className="text-3xl font-bold tabular-nums">{availabilityTotal.toLocaleString("fr-FR")}</span><span className="mt-1 text-xs text-gray-500">Produits</span></div>
+            </>}
+          </div>
+          <ul aria-label="Légende des disponibilités" className="space-y-3">
+            {loading && [1, 2, 3].map(index => <li key={index} aria-hidden="true" className="h-16 animate-pulse rounded-xl bg-gray-100 motion-reduce:animate-none" />)}
+            {availabilityData.map(item => <li key={item.status} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gray-50 px-4 py-4 text-sm">
+              <span className="flex items-center gap-3 text-gray-600"><span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />{item.name}</span>
+              <span className="font-semibold tabular-nums">{item.count.toLocaleString("fr-FR")} produit{item.count > 1 ? "s" : ""}<span className="ml-3 font-normal text-gray-500">{formatPercentage(item.percentage)}</span></span>
+            </li>)}
+          </ul>
+        </div>
+      </section>
 
       <section aria-labelledby="ratings-title" className="min-w-0 rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-5 sm:p-6">

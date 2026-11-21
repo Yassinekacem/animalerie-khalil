@@ -7,6 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import TypewriterTitle from "@/components/TypewriterTitle";
+import LocationSelects from "@/components/LocationSelects";
+import { isValidLocation } from "@/lib/tunisia-locations";
 import {
   UserRound,
   Mail,
@@ -95,6 +97,8 @@ export default function InscriptionPageClient() {
     lastName: "",
     email: "",
     phone: "",
+    gouvernorat: "",
+    ville: "",
     password: "",
     confirmPassword: "",
   });
@@ -125,6 +129,11 @@ export default function InscriptionPageClient() {
 
     if (sexe !== "HOMME" && sexe !== "FEMME") {
       setError("Veuillez sélectionner Homme ou Femme.");
+      return;
+    }
+
+    if ((formData.gouvernorat || formData.ville) && !isValidLocation(formData.gouvernorat, formData.ville)) {
+      setError("Sélectionnez une ville correspondant au gouvernorat choisi.");
       return;
     }
 
@@ -159,6 +168,7 @@ export default function InscriptionPageClient() {
       await register({
         name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
         email: formData.email.trim(), phone: formData.phone.trim() || null,
+        gouvernorat: formData.gouvernorat || null, ville: formData.ville || null,
         password: formData.password, sexe, image, acceptTerms: true,
       });
       setSuccess(true);
@@ -354,6 +364,12 @@ export default function InscriptionPageClient() {
                 </fieldset>
 
                 {/* Email */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <LocationSelects gouvernorat={formData.gouvernorat} ville={formData.ville}
+                    inputClass="mt-2 h-12 w-full rounded-xl border border-gray-200 bg-[#F8F9F7] px-3 text-sm outline-none focus:border-[#65D900] focus:ring-2 focus:ring-[#65D900]/15 disabled:opacity-50"
+                    onChange={location => setFormData(current => ({ ...current, ...location }))} />
+                </div>
+
                 <div>
                   <label
                     htmlFor="email"

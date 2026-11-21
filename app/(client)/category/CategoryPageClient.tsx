@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
 import {
   ArrowRight,
+  PawPrint,
   Dog,
   Cat,
   Bird,
@@ -293,7 +294,21 @@ export default function CategoryPageClient() {
       <section className="relative overflow-hidden bg-[#010101] px-5 py-14 sm:py-20 lg:px-8">
         <div className="absolute -right-32 -top-32 h-[400px] w-[400px] rounded-full bg-[#65D900]/10 blur-[100px]" />
 
-        <div className="relative mx-auto max-w-7xl">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none overflow-hidden text-[#65D900]/[0.12]">
+          {[
+          "left-3 top-5 h-10 w-10 -rotate-[24deg] sm:left-[3%] sm:h-14 sm:w-14",
+          "left-[42%] top-4 h-8 w-8 rotate-[18deg] sm:left-[40%] sm:top-8 sm:h-12 sm:w-12",
+          "right-5 top-7 h-16 w-16 rotate-[22deg] sm:right-[8%] sm:h-24 sm:w-24",
+          "-right-4 top-[42%] h-20 w-20 -rotate-[25deg] sm:right-5 sm:h-28 sm:w-28",
+          "bottom-5 left-4 h-14 w-14 -rotate-[18deg] sm:left-[5%] sm:h-20 sm:w-20",
+          "bottom-6 left-[46%] hidden h-12 w-12 rotate-[30deg] lg:block",
+          "bottom-3 right-[8%] h-10 w-10 rotate-[18deg] sm:bottom-6 sm:h-16 sm:w-16",
+        ].map((position, index) => (
+            <PawPrint key={index} focusable="false" fill="currentColor" strokeWidth={0} className={`absolute ${position}`} />
+          ))}
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-7xl">
           <div className="max-w-2xl">
 
             <motion.h1

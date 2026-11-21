@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 type Session = { userId: number; passwordVersion: string; expiresAt: number };
-export const publicUserSelect = { id: true, name: true, email: true, phone: true, image: true, role: true } as const;
+export const publicUserSelect = { id: true, name: true, email: true, phone: true, gouvernorat: true, ville: true, image: true, role: true } as const;
 const cookieName = "animalerie-khalil-session";
 
 export class AuthError extends Error {

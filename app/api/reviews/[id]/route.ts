@@ -48,8 +48,9 @@ export async function DELETE(request: Request, context: Context) {
     const id = idSchema.parse((await context.params).id);
     const existing = await prisma.review.findUnique({ where: { id }, select: { userId: true } });
     if (!existing) return authJson({ error: "Avis introuvable." }, 404);
-    if (existing.userId !== user.id) return authJson({ error: "Vous ne pouvez supprimer que vos propres avis." }, 403);
-    await prisma.review.delete({ where: { id, userId: user.id } });
+    if (existing.userId !== user.id && user.role !== "ADMIN") return authJson({ error: "Vous ne pouvez supprimer que vos propres avis." }, 403);
+    // Roles come from the authenticated database user, never from request data.
+    await prisma.review.delete({ where: { id, ...(user.role === "ADMIN" ? {} : { userId: user.id }) } });
     return authJson({ message: "Avis supprimé.", id });
   } catch (error) { return handleError(error); }
 }

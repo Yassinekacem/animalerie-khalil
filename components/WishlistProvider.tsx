@@ -13,10 +13,11 @@ type WishlistContextValue = {
   isFavorite: (id: number) => boolean;
   isPending: (id: number) => boolean;
   loading: boolean;
-  toggleFavorite: (id: number) => Promise<void>;
+  toggleFavorite: (product: Product) => Promise<void>;
 };
 type Result = { owner: object | null; products: Product[]; error: string };
-type Scope = { userId: number; controller: AbortController; pending: Set<number> };
+type Change = { product: Product; removing: boolean };
+type Scope = { owner: object; userId: number; controller: AbortController; pending: Map<number, Change> };
 const WishlistContext = createContext<WishlistContextValue | null>(null);
 
 class WishlistError extends Error {
@@ -44,25 +45,35 @@ export default function WishlistProvider({ children }: { children: ReactNode }) 
   const [attempt, setAttempt] = useState(0);
   const owner = useMemo(() => ({ userId, attempt, authLoading, authError }), [userId, attempt, authLoading, authError]);
   const [result, setResult] = useState<Result>({ owner: null, products: [], error: "" });
-  const [pending, setPending] = useState<{ scope: Scope | null; ids: number[] }>({ scope: null, ids: [] });
-  const [notice, setNotice] = useState<{ owner: object; message: string } | null>(null);
+  const [pending, setPending] = useState<{ scope: Scope | null; changes: Change[] }>({ scope: null, changes: [] });
+  const [notice, setNotice] = useState<{ owner: object; message: string; product: Product } | null>(null);
   const scopeRef = useRef<Scope | null>(null);
   const matches = result.owner === owner;
   const ready = !authLoading && !authError && matches && !result.error;
   const loading = authLoading || Boolean(userId && !authError && !matches);
   const error = authError || (userId && matches ? result.error : "") ||
     (notice?.owner === owner ? notice.message : "");
-  const products = userId && ready ? result.products : [];
+  // Keep confirmed products intact: dropping one failed change restores only that
+  // product, in its original position, without undoing other in-flight changes.
+  const changes = pending.scope?.owner === owner && !pending.scope.controller.signal.aborted ? pending.changes : [];
+  const removedIds = new Set(changes.filter(change => change.removing).map(change => change.product.id));
+  const addedProducts = changes.filter(change => !change.removing).map(change => change.product);
+  const products = userId && ready ? [
+    ...addedProducts,
+    ...result.products.filter(product => !removedIds.has(product.id) && !addedProducts.some(added => added.id === product.id)),
+  ] : [];
 
   function retry() {
-    if (pending.scope?.userId === userId && !pending.scope.controller.signal.aborted && pending.ids.length > 0) return;
+    if (pending.scope?.userId === userId && !pending.scope.controller.signal.aborted && pending.changes.length > 0) return;
     if (authError) void refresh();
-    else { setNotice(null); setAttempt(value => value + 1); }
+    else if (ready && notice?.owner === owner) {
+      void toggleFavorite(notice.product);
+    } else { setNotice(null); setAttempt(value => value + 1); }
   }
 
   useEffect(() => {
     if (authLoading || authError || userId === null) return;
-    const scope: Scope = { userId, controller: new AbortController(), pending: new Set() };
+    const scope: Scope = { owner, userId, controller: new AbortController(), pending: new Map() };
     scopeRef.current = scope;
     void wishlistRequest("GET", scope.controller.signal).then(data => {
       if (!Array.isArray(data.products) || !data.products.every((product: { id?: unknown } | null) =>
@@ -78,16 +89,17 @@ export default function WishlistProvider({ children }: { children: ReactNode }) 
     return () => { scope.controller.abort(); scopeRef.current = null; };
   }, [userId, authLoading, authError, owner, refresh]);
 
-  async function toggleFavorite(productId: number) {
+  async function toggleFavorite(product: Product) {
+    const productId = product.id;
     if (authLoading) return;
     if (authError) { void refresh(); return; }
     if (!userId) { router.push("/connexion"); return; }
     if (!ready) { if (!loading) setAttempt(value => value + 1); return; }
     const scope = scopeRef.current;
-    if (!scope || scope.userId !== userId || scope.controller.signal.aborted || scope.pending.has(productId)) return;
+    if (!scope || scope.owner !== owner || scope.userId !== userId || scope.controller.signal.aborted || scope.pending.has(productId)) return;
     const removing = result.products.some(product => product.id === productId);
-    scope.pending.add(productId);
-    setPending({ scope, ids: [...scope.pending] });
+    scope.pending.set(productId, { product, removing });
+    setPending({ scope, changes: [...scope.pending.values()] });
     setNotice(null);
     try {
       let addedProduct: Product | undefined;
@@ -95,14 +107,14 @@ export default function WishlistProvider({ children }: { children: ReactNode }) 
         const data = await wishlistRequest(removing ? "DELETE" : "POST", scope.controller.signal, productId);
         if (!removing) {
           if (data.product?.id !== productId) throw new Error("Réponse du produit favori incorrecte.");
-          addedProduct = data.product;
+          addedProduct = { ...product, ...data.product };
         }
       } catch (reason) {
         // Another tab may already have removed the item.
         if (!(removing && reason instanceof WishlistError && reason.status === 404)) throw reason;
       }
       if (scope.controller.signal.aborted) return;
-      setResult(current => ({
+      setResult(current => current.owner !== owner ? current : ({
         ...current,
         products: removing ? current.products.filter(product => product.id !== productId) :
           addedProduct ? [addedProduct, ...current.products.filter(product => product.id !== productId)] : current.products,
@@ -113,10 +125,12 @@ export default function WishlistProvider({ children }: { children: ReactNode }) 
         void refresh();
         router.push("/connexion");
       }
-      setNotice({ owner, message: reason instanceof Error ? reason.message : "Impossible de modifier vos favoris." });
+      const message = reason instanceof TypeError ? "Connexion impossible. Veuillez réessayer." :
+        reason instanceof Error ? reason.message : "Impossible de modifier vos favoris.";
+      setNotice({ owner, product, message: `${message} La modification a été annulée.` });
     } finally {
       scope.pending.delete(productId);
-      if (!scope.controller.signal.aborted) setPending({ scope, ids: [...scope.pending] });
+      if (!scope.controller.signal.aborted) setPending({ scope, changes: [...scope.pending.values()] });
     }
   }
 
@@ -126,7 +140,7 @@ export default function WishlistProvider({ children }: { children: ReactNode }) 
     error: authError || (matches ? result.error : ""),
     retry,
     isFavorite: id => products.some(product => product.id === id),
-    isPending: id => Boolean(pending.scope?.userId === userId && !pending.scope?.controller.signal.aborted && pending.ids.includes(id)),
+    isPending: id => Boolean(pending.scope?.userId === userId && !pending.scope?.controller.signal.aborted && pending.changes.some(change => change.product.id === id)),
     loading,
     toggleFavorite,
   }}>
@@ -134,7 +148,7 @@ export default function WishlistProvider({ children }: { children: ReactNode }) 
     {userId && loading && <p role="status" className="sr-only">Chargement des favoris…</p>}
     {error && <div role="alert" className="fixed bottom-4 left-4 right-4 z-50 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-800 shadow-lg sm:right-auto sm:max-w-sm">
       <p>{error}</p>
-      <button type="button" disabled={pending.ids.length > 0 && pending.scope?.userId === userId && !pending.scope.controller.signal.aborted} onClick={retry} className="mt-2 rounded font-bold text-[#438F00] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900] disabled:opacity-50">Réessayer</button>
+      <button type="button" disabled={pending.changes.length > 0 && pending.scope?.userId === userId && !pending.scope.controller.signal.aborted} onClick={retry} className="mt-2 rounded font-bold text-[#438F00] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#65D900] disabled:opacity-50">Réessayer</button>
     </div>}
   </WishlistContext.Provider>;
 }

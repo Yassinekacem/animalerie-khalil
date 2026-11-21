@@ -1,6 +1,7 @@
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { isValidLocation } from "@/lib/tunisia-locations";
 import { authError, authJson, limitAuthAttempt, publicUserSelect, readAuthBody } from "@/lib/auth";
 
 const schema = z.strictObject({
@@ -9,6 +10,8 @@ const schema = z.strictObject({
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères.")
     .refine(value => Buffer.byteLength(value, "utf8") <= 72, "Le mot de passe ne doit pas dépasser 72 octets."),
   phone: z.string().trim().max(32).nullable().optional().transform(value => value || null),
+  gouvernorat: z.string().trim().max(100).nullable().optional().transform(value => value || null),
+  ville: z.string().trim().max(100).nullable().optional().transform(value => value || null),
   sexe: z.enum(["HOMME", "FEMME"], { error: "Veuillez sélectionner Homme ou Femme." }),
   image: z.string().trim().url("URL de photo invalide.").max(2048).refine(value => {
     try {
@@ -19,6 +22,9 @@ const schema = z.strictObject({
     } catch { return false; }
   }, "La photo doit provenir du compte Cloudinary configuré.").nullable().optional(),
   acceptTerms: z.literal(true, { error: "Veuillez accepter les conditions d’utilisation." }),
+}).refine(data => (!data.gouvernorat && !data.ville) ||
+  Boolean(data.gouvernorat && data.ville && isValidLocation(data.gouvernorat, data.ville)), {
+  path: ["ville"], message: "Sélectionnez un gouvernorat tunisien et une ville correspondante, ou laissez les deux champs vides.",
 });
 
 export async function POST(request: Request) {
@@ -29,7 +35,7 @@ export async function POST(request: Request) {
     const existing = await prisma.user.findFirst({ where: { email: { equals: data.email, mode: "insensitive" } }, select: { id: true } });
     if (existing) return authJson({ error: "Cette adresse e-mail est déjà utilisée." }, 409);
     const user = await prisma.user.create({
-      data: { name: data.name, email: data.email, phone: data.phone, sexe: data.sexe, image: data.image ?? null, password: await hash(data.password, 12), role: "CLIENT", isActif: true },
+      data: { name: data.name, email: data.email, phone: data.phone, gouvernorat: data.gouvernorat, ville: data.ville, sexe: data.sexe, image: data.image ?? null, password: await hash(data.password, 12), role: "CLIENT", isActif: true },
       select: publicUserSelect,
     });
     return authJson({ user }, 201);

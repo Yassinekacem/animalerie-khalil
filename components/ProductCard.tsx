@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Heart, ShoppingCart } from "lucide-react";
 import ProductRating, { type ReviewSummary } from "@/components/ProductRating";
 import { useWishlist } from "@/components/WishlistProvider";
-import { categories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
+import { availabilityOptions, type ProductAvailability, categories, fallbackImage, formatPrice, type Animal } from "@/lib/catalogue";
 
 export type Product = ReviewSummary & {
   id: number;
@@ -17,7 +17,14 @@ export type Product = ReviewSummary & {
   image: string;
   price: string;
   promoPrice: string | null;
+  availability: ProductAvailability;
 };
+
+export function AvailabilityBadge({ availability }: { availability: ProductAvailability }) {
+  const status = availabilityOptions[availability];
+  if (!status) return null;
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}>{status.label}</span>;
+}
 
 const Skeleton = memo(function Skeleton({ className = "" }: { className?: string }) {
   return (
@@ -107,7 +114,7 @@ const ProductCard = memo(function ProductCard({
         )}
         <button
           type="button"
-          onClick={() => void toggleFavorite(product.id)}
+          onClick={() => void toggleFavorite(product)}
           disabled={wishlistLoading || favoritePending}
           aria-label={favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
           aria-pressed={favorite}
@@ -141,6 +148,7 @@ const ProductCard = memo(function ProductCard({
 
         {/* Marque : hauteur fixe */}
         <p title={product.brand ?? undefined} className="mt-2 h-4 shrink-0 truncate text-xs leading-4 text-gray-500">{product.brand ?? "\u00A0"}</p>
+        <div className="mt-2"><AvailabilityBadge availability={product.availability} /></div>
         <ProductRating averageRating={product.averageRating} reviewCount={product.reviewCount} />
 
         {/* Prix : hauteur fixe quel que soit le nombre de prix affichés */}
@@ -159,12 +167,12 @@ const ProductCard = memo(function ProductCard({
 
         {/* Bouton poussé en bas grâce à flex-1 sur le parent */}
         <div className="mt-auto pt-4"><button
-          disabled={!cartReady}
-          onClick={() => onAddToCart(product)}
+          disabled={!cartReady || product.availability !== "DISPONIBLE"}
+          onClick={() => { if (product.availability === "DISPONIBLE") onAddToCart(product); }}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#65D900] px-2 text-xs font-bold leading-4 text-black transition hover:bg-[#55BD00] disabled:opacity-50 sm:text-sm"
         >
           <ShoppingCart size={16} className="shrink-0" />
-          Ajouter au panier
+          {product.availability === "DISPONIBLE" ? "Ajouter au panier" : availabilityOptions[product.availability]?.label ?? "Indisponible"}
         </button></div>
       </div>
     </article>

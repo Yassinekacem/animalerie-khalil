@@ -1,5 +1,7 @@
 "use client";
 
+import { AvailabilityBadge } from "@/components/ProductCard";
+import { availabilityOptions, type ProductAvailability } from "@/lib/catalogue";
 import { useToast } from "@/components/ToastProvider";
 
 import {
@@ -31,6 +33,7 @@ type Product = {
   image: string;
   price: string;
   promoPrice: string | null;
+  availability: ProductAvailability;
   characteristics: Record<string, JsonValue>;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +51,7 @@ type Draft = {
   price: string;
   hasPromotion: boolean;
   promoPrice: string;
+  availability: ProductAvailability;
   features: Feature[];
 };
 type Mode = "details" | "form" | "delete";
@@ -130,6 +134,7 @@ function makeDraft(product?: Product): Draft {
   return product
     ? {
         id: product.id,
+        availability: product.availability,
         name: product.name,
         description: product.description,
         brand: product.brand ?? "",
@@ -147,6 +152,7 @@ function makeDraft(product?: Product): Draft {
       }
     : {
         id: null,
+        availability: "DISPONIBLE",
         name: "",
         description: "",
         brand: "",
@@ -197,6 +203,7 @@ function productPayload(draft: Draft) {
     ])
   );
   return {
+    availability: draft.availability,
     name: draft.name.trim(),
     description: draft.description.trim(),
     brand: draft.brand.trim() || null,
@@ -220,6 +227,7 @@ async function readResponse<T>(response: Response): Promise<T> {
       brand: "Marque",
       price: "Prix",
       promoPrice: "Promotion",
+      availability: "Disponibilité",
       characteristics: "Caractéristiques",
     };
     const issues: { path?: (string | number)[]; message: string }[] = Array.isArray(data?.issues)
@@ -455,6 +463,7 @@ const ProductRow = memo(function ProductRow({
       </td>
       <th scope="row" className="px-5 py-4 font-semibold">
         {product.name}
+        <div className="mt-2"><AvailabilityBadge availability={product.availability} /></div>
       </th>
       <td className="px-5 py-4">{animals[product.targetAnimal]}</td>
       <td className="px-5 py-4 text-gray-600">
@@ -523,6 +532,7 @@ export default function ProductsPage() {
   const [animal, setAnimal] = useState<Animal | "">("");
   const [category, setCategory] = useState("");
   const [promotion, setPromotion] = useState("");
+  const [availability, setAvailability] = useState("");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
 
@@ -559,8 +569,9 @@ export default function ProductsPage() {
     if (animal) params.set("targetAnimal", animal);
     if (category) params.set("category", category);
     if (promotion) params.set("promotion", promotion);
+    if (availability) params.set("availability", availability);
     return params.toString();
-  }, [page, sort, debouncedSearch, animal, category, promotion]);
+  }, [page, sort, debouncedSearch, animal, category, promotion, availability]);
 
   const products = list.data?.products ?? [];
   const total = list.data?.total ?? 0;
@@ -739,6 +750,7 @@ export default function ProductsPage() {
         setMode(null);
         setDraft(null);
         setSelected(null);
+        setReloadToken(value => value + 1);
       } catch (err) {
         setError(errorMessage(err));
         mutating.current = false;
@@ -803,6 +815,7 @@ export default function ProductsPage() {
     setAnimal("");
     setCategory("");
     setPromotion("");
+    setAvailability("");
     setSort("newest");
     setPage(1);
   }, []);
@@ -917,6 +930,13 @@ export default function ProductsPage() {
             <option value="">Tous les produits</option>
             <option value="true">En promotion</option>
             <option value="false">Sans promotion</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium">
+          Disponibilité
+          <select value={availability} onChange={event => { setAvailability(event.target.value); setPage(1); }} className={inputClass}>
+            <option value="">Tous</option>
+            {Object.entries(availabilityOptions).map(([value, status]) => <option key={value} value={value}>{status.label}</option>)}
           </select>
         </label>
         <div className="sm:col-span-2 xl:col-span-4">
@@ -1157,6 +1177,7 @@ export default function ProductsPage() {
                   <p className="mb-5 whitespace-pre-wrap break-words text-sm leading-6 text-gray-600">
                     {selected.description}
                   </p>
+                  <div className="mb-5"><AvailabilityBadge availability={selected.availability} /></div>
                   <dl className="grid gap-4 text-sm sm:grid-cols-2">
                     <div>
                       <dt className="text-gray-500">Animal cible</dt>
@@ -1255,6 +1276,12 @@ export default function ProductsPage() {
                         }
                         className={inputClass}
                       />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      Disponibilité *
+                      <select value={draft.availability} onChange={event => setDraft(prev => prev ? { ...prev, availability: event.target.value as ProductAvailability } : prev)} className={inputClass}>
+                        {Object.entries(availabilityOptions).map(([value, status]) => <option key={value} value={value}>{status.label}</option>)}
+                      </select>
                     </label>
                     <CloudinaryUpload
   value={draft.image}
