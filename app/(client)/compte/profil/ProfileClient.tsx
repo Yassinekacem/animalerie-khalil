@@ -210,7 +210,7 @@ function ProfileForm({ profile, onReload }: { profile: Profile; onReload: () => 
 
         <form onSubmit={save} className="py-7">
           <fieldset disabled={busy} className="grid min-w-0 gap-5 sm:grid-cols-2 sm:gap-6">
-            <legend className="sr-only">Modifier mes informations personnelles</legend>
+            <legend className="sr-only">Modifier mes données personnelles</legend>
             <label className="min-w-0 text-sm font-semibold text-gray-800">
               <span className="flex items-center gap-2"><UserRound size={16} className="text-gray-400" aria-hidden="true" />Nom complet</span>
               <input name="name" autoComplete="name" required minLength={2} maxLength={200} value={form.name} onChange={event => change("name", event.target.value)} className={accountInput} />
