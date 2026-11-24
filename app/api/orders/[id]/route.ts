@@ -1,7 +1,8 @@
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { AuthError, authError, requireUser } from "@/lib/auth";
+import { AuthError, authError, requireAdmin, requireUser } from "@/lib/auth";
+import { logEmailFailure, notifyAdminOrder } from "@/lib/email";
 
 const idSchema = z.string().regex(/^[1-9]\d*$/, "Identifiant invalide.")
   .transform(Number).pipe(z.number().int().positive().max(2147483647));
@@ -9,6 +10,26 @@ type Context = { params: Promise<{ id: string }> };
 
 function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
+}
+
+// Explicit administrative retry; customer checkout replays never send another email.
+export async function POST(request: Request, context: Context) {
+  try {
+    await requireAdmin(request);
+    const id = idSchema.parse((await context.params).id);
+    z.strictObject({ action: z.literal("retry-notification") }).parse(await request.json());
+    await notifyAdminOrder(id);
+    const order = await prisma.order.findUnique({ where: { id }, select: {
+      adminNotificationStatus: true, adminNotificationAttemptAt: true, adminNotificationStartedAt: true, adminNotificationSentAt: true,
+    } });
+    if (!order) return json({ error: "Commande introuvable." }, 404);
+    return json(order);
+  } catch (error) {
+    if (error instanceof AuthError) return authError(error);
+    if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "Demande invalide." }, 400);
+    logEmailFailure("Order notification retry unavailable", error);
+    return json({ error: "La notification n’a pas pu être actualisée. La commande est conservée. Réessayez." }, 503);
+  }
 }
 
 export async function GET(_request: Request, context: Context) {

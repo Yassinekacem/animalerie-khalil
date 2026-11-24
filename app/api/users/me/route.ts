@@ -55,7 +55,10 @@ export async function PATCH(request: Request) {
     const profile = data.email !== undefined ? await prisma.$transaction(async tx => {
       const duplicate = await tx.user.findFirst({ where: { email: { equals: data.email, mode: "insensitive" }, id: { not: user.id } }, select: { id: true } });
       if (duplicate) throw new AuthError("Cette adresse e-mail est déjà utilisée.", 409);
-      return tx.user.update({ where, data, select });
+      return tx.user.update({ where, data: { ...data, ...(data.email?.toLowerCase() !== user.email.toLowerCase() ? {
+        emailVerifiedAt: null, emailVerificationTokenHash: null, emailVerificationExpiresAt: null,
+        passwordResetTokenHash: null, passwordResetExpiresAt: null,
+      } : {}) }, select });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }) : await prisma.user.update({ where, data, select });
     return authJson(profile);
   } catch (error) {

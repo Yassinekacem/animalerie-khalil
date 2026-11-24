@@ -168,6 +168,7 @@ export default function ConnexionPageClient() {
                       Mot de passe
                     </label>
 
+                    <Link href="/mot-de-passe-oublie" className="ml-3 rounded text-right text-sm font-medium text-[#306900] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#306900]">Mot de passe oublié ?</Link>
                   </div>
 
                   <div className="flex items-center rounded-xl border border-gray-200 bg-[#F8F9F7] px-4 transition focus-within:border-[#65D900] focus-within:ring-2 focus-within:ring-[#65D900]/15">
@@ -252,6 +253,7 @@ export default function ConnexionPageClient() {
               </form>
 
               {/* Register */}
+              <div className="mt-5 text-center"><Link href="/verifier-email" className="rounded text-sm font-semibold text-[#438F00] underline underline-offset-4 focus-visible:outline-2">Email non vérifié ? Renvoyer un lien</Link></div>
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-500">
                   Vous n’avez pas encore de compte ?

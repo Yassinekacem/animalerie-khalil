@@ -5,7 +5,8 @@ import { readDeliveryFee } from "@/lib/order-delivery";
 import { isValidLocation } from "@/lib/tunisia-locations";
 import { z } from "zod";
 import { AuthError, authError, checkOrigin, getCurrentUser, requireAdmin, requireUser } from "@/lib/auth";
-import { connection } from "next/server";
+import { after, connection } from "next/server";
+import { logEmailFailure, notifyAdminOrder } from "@/lib/email";
 
 const maxQuantity = 9999;
 const maxAmount = new Prisma.Decimal("999999999999999.999");
@@ -146,7 +147,8 @@ export async function POST(request: Request) {
       } });
     };
     try {
-      return await prisma.$transaction(async tx => {
+      let createdId: number | undefined;
+      const response = await prisma.$transaction(async tx => {
         // A replay must still work if prices, availability or delivery settings changed.
         const existing = await tx.order.findUnique({
           where: { idempotencyKeyHash }, include: { items: { orderBy: { id: "asc" } } },
@@ -206,8 +208,19 @@ export async function POST(request: Request) {
           },
           include: { items: { orderBy: { id: "asc" } } },
         });
+        createdId = order.id;
         return Response.json(order, { status: 201, headers: { Location: `/api/orders/${order.id}`, "Cache-Control": "no-store" } });
       });
+      if (response.status === 201 && createdId !== undefined) {
+        const orderId = createdId;
+        // Register only after commit. Delivery must never change the checkout response.
+        try { after(async () => {
+          console.info("Order notification deferred task started");
+          try { await notifyAdminOrder(orderId); }
+          catch (error) { logEmailFailure("Order notification processing unavailable", error); }
+        }); } catch (error) { logEmailFailure("Order notification scheduling unavailable", error); }
+      }
+      return response;
     } catch (error) {
       // Concurrent requests can both miss the lookup. The unique index chooses
       // one winner; after the losing transaction rolls back, return its result.

@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 type Session = { userId: number; passwordVersion: string; expiresAt: number };
-export const publicUserSelect = { id: true, name: true, email: true, phone: true, gouvernorat: true, ville: true, image: true, role: true } as const;
+export const publicUserSelect = { id: true, name: true, email: true, emailVerifiedAt: true, phone: true, gouvernorat: true, ville: true, image: true, role: true } as const;
 const cookieName = "animalerie-khalil-session";
 
 export class AuthError extends Error {
@@ -47,7 +47,7 @@ export async function getCurrentUser() {
     typeof session.expiresAt !== "number" || session.expiresAt <= Date.now() ||
     typeof session.passwordVersion !== "string" || !/^[a-f0-9]{64}$/.test(session.passwordVersion)) return null;
   const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { ...publicUserSelect, password: true, isActif: true } });
-  if (!user || !user.isActif || !timingSafeEqual(Buffer.from(session.passwordVersion), Buffer.from(passwordVersion(user.password)))) return null;
+  if (!user || !user.isActif || !user.emailVerifiedAt || !timingSafeEqual(Buffer.from(session.passwordVersion), Buffer.from(passwordVersion(user.password)))) return null;
   // Read role/activation in the database, never from browser data or a stale cookie.
   const { password: _password, isActif: _isActif, ...safeUser } = user;
   void _password; void _isActif;

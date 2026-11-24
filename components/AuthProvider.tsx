@@ -6,6 +6,7 @@ export type AuthUser = {
   id: number;
   name: string;
   email: string;
+  emailVerifiedAt: string | null;
   role: "CLIENT" | "ADMIN";
   phone: string | null;
   gouvernorat: string | null;
@@ -19,7 +20,7 @@ type AuthContextValue = {
   error: string;
   refresh: () => Promise<void>;
   login: (data: { email: string; password: string; rememberMe: boolean }) => Promise<AuthUser>;
-  register: (data: Registration) => Promise<void>;
+  register: (data: Registration) => Promise<{ emailSent: boolean }>;
   logout: () => Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -95,7 +96,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     channel.current?.postMessage("changed");
     return result.user;
   }
-  async function register(data: Registration) { await request("register", data); }
+  async function register(data: Registration) { return request<{ emailSent: boolean }>("register", data); }
   async function logout() {
     ++generation.current;
     await request("logout", {});

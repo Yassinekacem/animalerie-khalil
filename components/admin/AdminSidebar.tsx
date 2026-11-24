@@ -11,6 +11,7 @@ import {
   Package,
   ShoppingBag,
   MessageSquare,
+  BookOpen,
   ChartNoAxesCombined,
   LogOut, 
   LayoutDashboard ,
@@ -31,8 +32,9 @@ const adminSections = [
     links: [
       { name: "Utilisateurs", href: "/admin/utilisateurs", icon: Users },
       { name: "Produits", href: "/admin/produits", icon: Package },
-      { name: "Commandes", href: "/admin/commandes", icon: ShoppingBag },
+      { name: "Commandes", href: "/admin/commande", icon: ShoppingBag },
       { name: "Gestion des avis", href: "/admin/avis", icon: MessageSquare },
+      { name: "Gestion des blogs", href: "/admin/blogs", icon: BookOpen },
     ],
   },
   {
@@ -234,7 +236,7 @@ export default function AdminSidebar() {
                         }`}
                       />
                       <span>{link.name}</span>
-                      {link.href === "/admin/commandes" && unseenCount > 0 && (
+                      {link.href === "/admin/commande" && unseenCount > 0 && (
                         <span role="status" aria-label={`${unseenCount} nouvelle(s) commande(s)`}
                           className="ml-auto inline-flex min-w-6 shrink-0 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
                           {unseenCount}

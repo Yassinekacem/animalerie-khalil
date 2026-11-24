@@ -68,7 +68,10 @@ export async function PUT(request: Request, context: Context) {
       }
       const duplicate = await tx.user.findFirst({ where: { email: { equals: data.email, mode: "insensitive" }, id: { not: id } }, select: { id: true } });
       if (duplicate) throw new AuthError("Cette adresse e-mail est déjà utilisée.", 409);
-      return tx.user.update({ where: { id }, data, select });
+      return tx.user.update({ where: { id }, data: { ...data, ...(data.email.toLowerCase() !== current.email.toLowerCase() ? {
+        emailVerifiedAt: null, emailVerificationTokenHash: null, emailVerificationExpiresAt: null,
+        passwordResetTokenHash: null, passwordResetExpiresAt: null,
+      } : {}) }, select });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return authJson(user);
   } catch (error) { return handleError(error); }

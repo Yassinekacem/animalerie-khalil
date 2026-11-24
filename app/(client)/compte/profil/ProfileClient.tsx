@@ -218,6 +218,7 @@ function ProfileForm({ profile, onReload }: { profile: Profile; onReload: () => 
             <label className="min-w-0 text-sm font-semibold text-gray-800">
               <span className="flex items-center gap-2"><Mail size={16} className="text-gray-400" aria-hidden="true" />Adresse e-mail</span>
               <input name="email" type="email" autoComplete="email" required maxLength={254} value={form.email} onChange={event => change("email", event.target.value)} className={accountInput} />
+              <span className="mt-2 block text-xs font-normal leading-5 text-gray-500">Une nouvelle adresse devra être vérifiée avant de vous reconnecter. Demandez ensuite un lien depuis la page de connexion.</span>
             </label>
             <label className="min-w-0 text-sm font-semibold text-gray-800">
               <span className="flex flex-wrap items-center gap-2"><Phone size={16} className="text-gray-400" aria-hidden="true" />Téléphone <span className="text-xs font-normal text-gray-400">(facultatif)</span></span>

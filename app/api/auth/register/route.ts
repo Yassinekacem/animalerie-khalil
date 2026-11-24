@@ -1,4 +1,5 @@
 import { hash } from "bcryptjs";
+import { sendVerificationEmail } from "@/lib/email";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isValidLocation } from "@/lib/tunisia-locations";
@@ -38,6 +39,10 @@ export async function POST(request: Request) {
       data: { name: data.name, email: data.email, phone: data.phone, gouvernorat: data.gouvernorat, ville: data.ville, sexe: data.sexe, image: data.image ?? null, password: await hash(data.password, 12), role: "CLIENT", isActif: true },
       select: publicUserSelect,
     });
-    return authJson({ user }, 201);
+    // Account creation remains successful if the email provider is unavailable.
+    // The customer can retry delivery without registering a second account.
+    let emailSent = false;
+    try { emailSent = await sendVerificationEmail(user.id); } catch { /* No provider details or secrets in logs. */ }
+    return authJson({ user, emailSent }, 201);
   } catch (error) { return authError(error); }
 }

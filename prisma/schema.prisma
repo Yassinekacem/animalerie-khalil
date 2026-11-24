@@ -21,6 +21,17 @@ model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
+  emailVerifiedAt DateTime?
+  emailVerificationTokenHash String? @unique
+  emailVerificationExpiresAt DateTime?
+  emailVerificationSentAt DateTime?
+  emailVerificationWindowAt DateTime?
+  emailVerificationSendCount Int @default(0)
+  passwordResetTokenHash String? @unique
+  passwordResetExpiresAt DateTime?
+  passwordResetSentAt DateTime?
+  passwordResetWindowAt DateTime?
+  passwordResetSendCount Int @default(0)
   password  String
   phone     String?
   gouvernorat String?
@@ -41,6 +52,19 @@ enum Animal {
   chat
   oiseaux
   poissons
+}
+
+model Blog {
+  id        Int      @id @default(autoincrement())
+  title     String
+  category  Animal
+  image     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt, id])
+  @@index([category, createdAt, id])
 }
 
 enum ProductAvailability {
@@ -107,6 +131,15 @@ enum OrderStatus {
   ANNULEE
 }
 
+enum OrderNotificationStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  UNKNOWN
+  SKIPPED
+}
+
 model Order {
   id              Int         @id @default(autoincrement())
   reference       String      @unique
@@ -126,6 +159,10 @@ model Order {
   note            String?
   status          OrderStatus @default(EN_ATTENTE)
   adminSeenAt     DateTime?
+  adminNotificationStatus OrderNotificationStatus @default(PENDING)
+  adminNotificationStartedAt DateTime?
+  adminNotificationAttemptAt DateTime?
+  adminNotificationSentAt DateTime?
   subtotal        Decimal     @db.Decimal(18, 3)
   deliveryFee     Decimal     @db.Decimal(18, 3)
   total           Decimal     @db.Decimal(18, 3)

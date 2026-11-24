@@ -78,7 +78,7 @@ export default function AdminPage() {
             Gérer les produits
           </Link>
           <Link
-            href="/admin/commandes"
+            href="/admin/commande"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#010101] px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#010101]"
           >
             Voir les commandes
@@ -131,7 +131,7 @@ export default function AdminPage() {
                 {data?.recentOrders.length === 0 && <tr><td colSpan={5} className="px-5 py-10 text-center text-gray-500">Aucune commande pour le moment.</td></tr>}
                 {data?.recentOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
-                    <th scope="row" className="whitespace-nowrap px-5 py-5 font-semibold"><Link href="/admin/commandes" className="rounded hover:underline focus-visible:outline-2">{order.reference}</Link></th>
+                    <th scope="row" className="whitespace-nowrap px-5 py-5 font-semibold"><Link href="/admin/commande" className="rounded hover:underline focus-visible:outline-2">{order.reference}</Link></th>
                     <td className="whitespace-nowrap px-5 py-5 text-gray-600">{order.customerName}</td>
                     <td className="px-5 py-5 text-gray-500"><time dateTime={order.createdAt}>{dateLabel(order.createdAt)}</time></td>
                     <td className="whitespace-nowrap px-5 py-5 text-right font-medium tabular-nums">{money(order.total)}</td>

@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     const user = users.length === 1 ? users[0] : null;
     const valid = await compare(data.password, user?.password ?? dummyHash);
     if (!user || !valid || !user.isActif) return authJson({ error: "Adresse e-mail ou mot de passe incorrect, ou compte désactivé." }, 401);
+    if (!user.emailVerifiedAt) return authJson({ error: "Veuillez vérifier votre adresse email avant de vous connecter. Vous pouvez demander un nouveau lien de vérification.", code: "EMAIL_NOT_VERIFIED" }, 403);
     await startSession(user, data.rememberMe);
     const { password: _password, isActif: _isActif, ...safeUser } = user;
     void _password; void _isActif;

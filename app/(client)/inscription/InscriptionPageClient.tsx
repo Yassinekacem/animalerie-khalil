@@ -90,6 +90,7 @@ export default function InscriptionPageClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const toast = useToast();
 
   const [formData, setFormData] = useState({
@@ -165,14 +166,15 @@ export default function InscriptionPageClient() {
       setIsLoading(true);
       const image = photo ? await uploadPhoto(photo) : null;
       if (uploadController.current?.signal.aborted) return;
-      await register({
+      const registration = await register({
         name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
         email: formData.email.trim(), phone: formData.phone.trim() || null,
         gouvernorat: formData.gouvernorat || null, ville: formData.ville || null,
         password: formData.password, sexe, image, acceptTerms: true,
       });
       setSuccess(true);
-      toast("Votre compte a été créé. Connectez-vous pour accéder à votre compte.");
+      setVerificationSent(registration.emailSent);
+      toast(registration.emailSent ? "Compte créé. Vérifiez votre email avant de vous connecter." : "Compte créé. L’email n’a pas pu être envoyé ; demandez un nouveau lien.");
       setPhoto(null);
       setFormData(current => ({ ...current, password: "", confirmPassword: "" }));
     } catch (reason) {
@@ -269,7 +271,9 @@ export default function InscriptionPageClient() {
 
               {success ? <div role="status" className="rounded-xl border border-[#65D900]/40 bg-[#65D900]/10 p-5 text-sm text-gray-800">
 
-                <p className="mt-2">Connectez-vous pour accéder à votre compte.</p>
+                <p className="font-bold">Votre compte a été créé.</p>
+                <p className="mt-2">{verificationSent ? "Un lien valable 24 heures vous a été envoyé. Ouvrez-le pour vérifier votre adresse avant de vous connecter. Consultez aussi les courriers indésirables." : "L’email de vérification n’a pas pu être envoyé. Votre compte est conservé : inutile de vous inscrire à nouveau. Demandez un nouveau lien dans une minute."}</p>
+                <Link href="/verifier-email" className="mt-4 block rounded font-semibold text-[#438F00] underline underline-offset-4 focus-visible:outline-2">Renvoyer un lien de vérification</Link>
                 <button type="button" onClick={() => { router.replace("/connexion"); router.refresh(); }} className="mt-4 rounded-xl bg-[#65D900] px-5 py-3 font-bold text-black focus-visible:outline-2 focus-visible:outline-offset-2">Se connecter</button>
               </div> : <form onSubmit={handleSubmit} aria-busy={isLoading}>
                 <fieldset disabled={isLoading} className="min-w-0 space-y-4">

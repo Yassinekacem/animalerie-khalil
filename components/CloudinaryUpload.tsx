@@ -225,11 +225,7 @@ export default function CloudinaryUpload({
       <div
         role="button"
         tabIndex={busy ? -1 : 0}
-        aria-label={
-          value
-            ? "Remplacer l'image du produit"
-            : "Ajouter une image au produit"
-        }
+        aria-label={`${value ? "Remplacer" : "Ajouter"} ${label.toLowerCase()}`}
         aria-disabled={busy}
         onClick={() => !busy && inputRef.current?.click()}
         onKeyDown={(e) => {
