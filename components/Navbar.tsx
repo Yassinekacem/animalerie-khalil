@@ -13,7 +13,10 @@ import {
   UserRound,
   Menu,
   X,
-  PawPrint,
+  MapPin,
+  Phone,
+  Clock,
+  Truck,
   LogOut,
   LogIn,
   UserPlus,
@@ -21,6 +24,13 @@ import {
   Settings,
   Heart,
 } from "lucide-react";
+
+const announcementItems = [
+  { Icon: MapPin, label: "41 Rue de la Paix, Dar Chaabane Al Fehri" },
+  { Icon: Phone, label: "+216 96 766 945", href: "tel:+21696766945" },
+  { Icon: Clock, label: "Tous les jours de 9h à 20h" },
+  { Icon: Truck, label: "Livraison à domicile" },
+];
 
 const navLinks = [
   { name: "Accueil", href: "/" }, 
@@ -107,10 +117,42 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full">
       <Suspense fallback={null}><NavigationReset onNavigate={closeMenus} /></Suspense>
       {/* Announcement bar */}
-      <div className="bg-[#65D900] px-3 py-2 text-center text-xs font-semibold text-black sm:text-sm">
-        <PawPrint className="mr-2 inline-block h-4 w-4" />
-        Tout pour le bonheur de vos animaux                                                                                                                                
-        
+      <div className="announcement-ticker bg-[#65D900] py-2 text-xs font-semibold text-black sm:text-sm">
+        <div className="announcement-ticker-track">
+          {[false, true].map((isCopy) => (
+            <ul
+              key={isCopy ? "copy" : "original"}
+              className="announcement-ticker-list"
+              aria-hidden={isCopy || undefined}
+              role="list"
+            >
+              {announcementItems.map(({ Icon, label, href }) => (
+                <li key={label} className="announcement-ticker-item">
+                  {href ? (
+                    <a
+                      href={href}
+                      tabIndex={isCopy ? -1 : undefined}
+                      className="announcement-ticker-label hover:underline focus-visible:underline"
+                      onFocus={({ currentTarget }) => {
+                        if (currentTarget.matches(":focus-visible")) {
+                          currentTarget.scrollIntoView({ block: "nearest", inline: "center" });
+                        }
+                      }}
+                    >
+                      <Icon size={16} aria-hidden="true" />
+                      {label}
+                    </a>
+                  ) : (
+                    <span className="announcement-ticker-label">
+                      <Icon size={16} aria-hidden="true" />
+                      {label}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ))}
+        </div>
       </div>
 
       {/* Main Navbar */}

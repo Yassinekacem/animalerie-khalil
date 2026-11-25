@@ -24,3 +24,75 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.announcement-ticker {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.announcement-ticker-track {
+  display: inline-flex;
+  width: max-content;
+  min-width: 100%;
+  height: 1rem;
+  vertical-align: middle;
+}
+
+.announcement-ticker-list {
+  display: flex;
+  flex: 1 0 auto;
+}
+
+.announcement-ticker-list[aria-hidden] {
+  display: none;
+}
+
+.announcement-ticker-item {
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+}
+
+.announcement-ticker-item::after {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.announcement-ticker-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline: auto;
+  padding-inline: 0.75rem;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .announcement-ticker:where(:not(:has(.announcement-ticker-list:first-child a:focus-visible))) {
+    overflow: clip;
+
+    .announcement-ticker-track {
+      min-width: 200%;
+      animation: announcement-scroll 24s linear infinite;
+    }
+
+    .announcement-ticker-list[aria-hidden] {
+      display: flex;
+    }
+  }
+}
+
+@media (hover: hover) {
+  .announcement-ticker:hover .announcement-ticker-track {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes announcement-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
